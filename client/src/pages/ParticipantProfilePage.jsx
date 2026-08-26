@@ -400,7 +400,8 @@ function ParticipantProfilePage() {
                                     const formatIndoDate = (dateStr) => {
                                         if (!dateStr) return null;
                                         return new Date(dateStr).toLocaleString('id-ID', {
-                                            day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+                                            day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+                                            timeZone: 'Asia/Jakarta'
                                         });
                                     };
 

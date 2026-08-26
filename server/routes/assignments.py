@@ -62,8 +62,8 @@ def get_assignments(
             "test_name": a.test.name,
             "test_code": a.test.code,
             "status": a.status,
-            "assigned_at": a.assigned_at.isoformat() + "Z" if a.assigned_at else None,
-            "started_at": a.started_at.isoformat() + "Z" if a.started_at else None,
+            "assigned_at": a.assigned_at.isoformat() if a.assigned_at else None,
+            "started_at": a.started_at.isoformat() if a.started_at else None,
             "exit_count": exit_count,
             "pretest_completed": a.pretest_completed
         })

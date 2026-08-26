@@ -67,8 +67,8 @@ def get_results(
             "max_score": max_score,
             "time_taken": r.time_taken,
             "exit_count": exit_count,
-            "completed_at": r.completed_at.isoformat() + "Z" if r.completed_at else None,
-            "started_at": r.assignment.started_at.isoformat() + "Z" if r.assignment and r.assignment.started_at else None,
+            "completed_at": r.completed_at.isoformat() if r.completed_at else None,
+            "started_at": r.assignment.started_at.isoformat() if r.assignment and r.assignment.started_at else None,
             "details": r.details
         })
     return output
