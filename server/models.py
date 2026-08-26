@@ -44,6 +44,7 @@ class User(Base):
     class_id = Column(Integer, ForeignKey("class_configs.id"), nullable=True, index=True)
     level = Column(String, nullable=True)  # e.g., "Supervisor / Section Head"
     current_session_id = Column(String, nullable=True)
+    participant_status = Column(String, nullable=True)
     report_decisions = Column(JSON, nullable=True, default=dict)
     created_at = Column(DateTime, default=get_now_jakarta, index=True)
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import Swal from 'sweetalert2';
@@ -103,35 +103,29 @@ function ReportDecisionPage() {
         }));
     };
 
-    // Calculate system suggestion based on level rules
-    const calculateSystemSuggestion = () => {
-        const levelConfig = RECOMMENDATION_LOGIC[data?.level];
-        if (!levelConfig) return 'DIPERTIMBANGKAN';
+    // Calculate system suggestion based on final recommendation counts
+    const calculateSystemSuggestion = useCallback(() => {
+        const recommendations = Object.values(decisions || {}).map(item => item?.recommendation);
+        const notLulusCount = recommendations.filter(value => value === 'TIDAK LULUS').length;
+        const dipertimbangkanCount = recommendations.filter(value => value === 'DIPERTIMBANGKAN').length;
 
-        // Check MUST tests
-        const mustPass = levelConfig.must.every(code => 
-            decisions[code]?.recommendation === 'LULUS'
-        );
-        if (!mustPass) return 'TIDAK DISARANKAN';
-
-        // Check Supporting tests
-        const supportingPassCount = levelConfig.supporting.filter(code => 
-            decisions[code]?.recommendation === 'LULUS'
-        ).length;
-
-        if (supportingPassCount >= levelConfig.minSupporting) {
-            return 'DIREKOMENDASIKAN';
+        if (notLulusCount >= 2) {
+            return 'TIDAK DISARANKAN';
         }
 
-        return 'DIPERTIMBANGKAN';
-    };
+        if (dipertimbangkanCount >= 2) {
+            return 'DIPERTIMBANGKAN';
+        }
+
+        return 'DIREKOMENDASIKAN';
+    }, [decisions]);
 
     // Sync final status with suggestion if not overridden
     useEffect(() => {
         if (!isManualOverride && data) {
             setFinalStatus(calculateSystemSuggestion());
         }
-    }, [decisions, data, isManualOverride]);
+    }, [calculateSystemSuggestion, data, isManualOverride]);
 
     const handleSave = async () => {
         setSaving(true);
@@ -269,6 +263,10 @@ function ReportDecisionPage() {
                             <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Pendidikan Terakhir</label>
                             <p className="text-sm font-bold text-neutral-900 uppercase">{data.education || '–'}</p>
                         </div>
+                        <div className="space-y-1 md:col-span-4">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Status Peserta</label>
+                            <p className="font-semibold text-sm text-neutral-700">{data.participant_status || '–'}</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -293,7 +291,7 @@ function ReportDecisionPage() {
                                 <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest w-48">Nama Tes</th>
                                 <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest w-48 text-center">Status Tes</th>
                                 <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest w-64">Hasil</th>
-                                <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest w-48 text-center">Rekomendasi Internal</th>
+                                <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest w-48 text-center">Rekomendasi Internal Asesor</th>
                                 <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest w-48 text-center">Opsi Kelulusan</th>
                             </tr>
                         </thead>
@@ -350,6 +348,7 @@ function ReportDecisionPage() {
                                             >
                                                 <option value="LULUS">LULUS</option>
                                                 <option value="TIDAK LULUS">TIDAK LULUS</option>
+                                                <option value="DIPERTIMBANGKAN">DIPERTIMBANGKAN</option>
                                             </select>
                                             <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-current">
                                                 <svg className="w-4 h-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -383,9 +382,11 @@ function ReportDecisionPage() {
                             <p className="text-[10px] font-bold text-neutral-500 max-w-[200px] leading-tight">
                                 {data.summary.some(i => i.assignment_status !== 'completed' && i.assignment_status !== 'not_assigned')
                                     ? 'Saran tidak dapat dihitung karena ada tes yang belum selesai.'
-                                    : calculateSystemSuggestion() === 'TIDAK DISARANKAN' 
-                                        ? 'Salah satu atau lebih tes "MUST" tidak lulus.' 
-                                        : `Memenuhi semua kriteria "MUST" untuk level ${data.level}.`}
+                                    : calculateSystemSuggestion() === 'TIDAK DISARANKAN'
+                                        ? 'Terdapat 2 atau lebih rekomendasi "TIDAK LULUS".'
+                                        : calculateSystemSuggestion() === 'DIPERTIMBANGKAN'
+                                            ? 'Terdapat 2 atau lebih rekomendasi "DIPERTIMBANGKAN".'
+                                            : 'Tidak ada dua rekomendasi "TIDAK LULUS" maupun dua rekomendasi "DIPERTIMBANGKAN".'}
                             </p>
                         </div>
                     </div>

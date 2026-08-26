@@ -1,12 +1,12 @@
 # server/services/pdf_report.py
 from datetime import datetime
 from typing import Dict, List, Optional
-try:
-    from weasyprint import HTML
-    HAS_WEASYPRINT = True
-except Exception as e:
-    print(f"Warning: WeasyPrint could not be loaded ({e}). PDF exports will be disabled.")
-    HAS_WEASYPRINT = False
+# try:
+#     from weasyprint import HTML
+#     HAS_WEASYPRINT = True
+# except Exception as e:
+#     print(f"Warning: WeasyPrint could not be loaded ({e}). PDF exports will be disabled.")
+#     HAS_WEASYPRINT = False
 from models import User, Result  # assuming these are accessible
 
 

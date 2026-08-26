@@ -15,8 +15,14 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    // Don't set Content-Type for FormData - let browser set it with boundary
-    if (!(config.data instanceof FormData)) {
+    // Only force JSON when the caller did not already choose another payload type.
+    if (
+      config.data &&
+      !(config.data instanceof FormData) &&
+      !(config.data instanceof URLSearchParams) &&
+      typeof config.data === 'object' &&
+      !(config.data instanceof Blob)
+    ) {
       config.headers['Content-Type'] = 'application/json';
     }
     return config;
@@ -82,10 +88,10 @@ export const api = {
 
   // Auth
   login: (credentials) => {
-    const formData = new FormData();
+    const formData = new URLSearchParams();
     formData.append('username', credentials.username);
     formData.append('password', credentials.password);
-    return apiClient.post('/login', formData, {
+    return apiClient.post('/login', formData.toString(), {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
   },

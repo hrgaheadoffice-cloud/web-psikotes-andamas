@@ -16,7 +16,10 @@ def hash_password(password: str):
     return pwd_context.hash(password)
 
 def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception:
+        return False
 
 # Security settings from environment variables
 SECRET_KEY = os.getenv("SECRET_KEY", "your-fallback-secret-key-change-in-production")

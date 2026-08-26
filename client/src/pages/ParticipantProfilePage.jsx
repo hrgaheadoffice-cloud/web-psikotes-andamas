@@ -358,6 +358,10 @@ function ParticipantProfilePage() {
                             <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Pendidikan Terakhir</label>
                             <p className="text-sm font-bold text-neutral-900 uppercase">{user.education || '–'}</p>
                         </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Status Peserta</label>
+                            <p className="font-semibold text-sm text-neutral-700">{user.participant_status || '–'}</p>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -14,7 +14,7 @@ from auth import require_assessor_or_higher, get_current_user
 from database import get_db
 from models import User, Test, Assignment, Result, Question, ExitLog
 from utils import get_max_score
-from services.pdf_report import generate_participant_pdf
+# from services.pdf_report import generate_participant_pdf
 
 router = APIRouter(tags=["results"])
 

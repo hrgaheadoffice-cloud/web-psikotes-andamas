@@ -7,7 +7,7 @@ import Swal from 'sweetalert2';
 function CreateUser({ onUserCreated, initialRole = 'participant' }) {
   const { token, isSuperadmin: currentUserRole } = useAuth();
   const [classes, setClasses] = useState([]);
-  const [formData, setFormData] = useState({
+  const getInitialFormData = () => ({
     username: '',
     password: '',
     full_name: '',
@@ -18,9 +18,13 @@ function CreateUser({ onUserCreated, initialRole = 'participant' }) {
     position: '',
     level: '',
     business_unit: '',
-    role: initialRole, // use prop-driven initial role
+    participant_status: '',
+    role: initialRole,
     class_id: '',
     assign_all_tests: false
+  });
+  const [formData, setFormData] = useState({
+    ...getInitialFormData()
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
@@ -46,23 +50,27 @@ function CreateUser({ onUserCreated, initialRole = 'participant' }) {
 
   const validateForm = () => {
     const newErrors = {};
+    const trimmedUsername = formData.username.trim();
+    const trimmedFullName = formData.full_name.trim();
+    const trimmedPassword = formData.password;
+    const parsedAge = formData.age === '' ? null : Number(formData.age);
 
     // Username validation
-    if (!formData.username.trim()) {
+    if (!trimmedUsername) {
       newErrors.username = 'Username wajib diisi';
-    } else if (formData.username.length < 3) {
+    } else if (trimmedUsername.length < 3) {
       newErrors.username = 'Username minimal 3 karakter';
     }
 
     // Password validation
-    if (!formData.password) {
+    if (!trimmedPassword) {
       newErrors.password = 'Kata sandi wajib diisi';
-    } else if (formData.password.length < 6) {
+    } else if (trimmedPassword.length < 6) {
       newErrors.password = 'Kata sandi minimal 6 karakter';
     }
 
     // Full name validation
-    if (!formData.full_name.trim()) {
+    if (!trimmedFullName) {
       newErrors.full_name = 'Nama lengkap wajib diisi';
     }
 
@@ -71,13 +79,28 @@ function CreateUser({ onUserCreated, initialRole = 'participant' }) {
       newErrors.level = 'Level wajib dipilih';
     }
 
-    // Age validation (if provided)
-    if (formData.age && (formData.age < 1 || formData.age > 120)) {
-      newErrors.age = 'Usia harus antara 1 hingga 120';
+    // Age validation
+    if (formData.age !== '') {
+      if (Number.isNaN(parsedAge)) {
+        newErrors.age = 'Usia harus berupa angka';
+      } else if (parsedAge < 1 || parsedAge > 120) {
+        newErrors.age = 'Usia harus antara 1 hingga 120';
+      }
+    }
+
+    if (formData.role === 'participant') {
+      if (!formData.gender) newErrors.gender = 'Jenis kelamin wajib dipilih untuk peserta';
+      if (parsedAge === null) newErrors.age = 'Usia wajib diisi untuk peserta';
+      if (!formData.education.trim()) newErrors.education = 'Pendidikan wajib diisi untuk peserta';
+      if (!formData.department) newErrors.department = 'Departemen wajib dipilih untuk peserta';
+      if (!formData.position.trim()) newErrors.position = 'Jabatan wajib diisi untuk peserta';
+      if (!formData.business_unit) newErrors.business_unit = 'Unit Bisnis wajib dipilih untuk peserta';
+      if (!formData.participant_status) newErrors.participant_status = 'Status Peserta wajib dipilih';
+      if (!formData.class_id) newErrors.class_id = 'Kelas wajib dipilih';
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return { isValid: Object.keys(newErrors).length === 0, newErrors };
   };
 
   const handleChange = (e) => {
@@ -92,9 +115,10 @@ function CreateUser({ onUserCreated, initialRole = 'participant' }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    const { isValid, newErrors } = validateForm();
+    if (!isValid) {
       // Scroll to first error
-      const firstErrorField = Object.keys(errors)[0];
+      const firstErrorField = Object.keys(newErrors)[0];
       if (firstErrorField) {
         document.getElementsByName(firstErrorField)[0]?.focus();
       }
@@ -115,6 +139,7 @@ function CreateUser({ onUserCreated, initialRole = 'participant' }) {
       position: formData.position.trim() || null,
       business_unit: formData.business_unit || null,
       level: formData.level || null,
+      participant_status: formData.role === 'participant' ? formData.participant_status : null,
       role: formData.role,
       class_id: formData.class_id || null
     };
@@ -132,18 +157,7 @@ function CreateUser({ onUserCreated, initialRole = 'participant' }) {
 
       // Reset form
       setFormData({
-        username: '',
-        password: '',
-        full_name: '',
-        gender: '',
-        age: '',
-        education: '',
-        department: '',
-        position: '',
-        business_unit: '',
-        level: '',
-        role: 'participant',
-        class_id: ''
+        ...getInitialFormData()
       });
       setErrors({});
 
@@ -336,7 +350,7 @@ function CreateUser({ onUserCreated, initialRole = 'participant' }) {
                 name="education"
                 value={formData.education}
                 onChange={handleChange}
-                placeholder="contoh: S1"
+                placeholder="contoh: S1 Jurusan - Universitas"
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -416,6 +430,33 @@ function CreateUser({ onUserCreated, initialRole = 'participant' }) {
                 <option value="PT. Bukit Artha Persada Arsy Nusantara - Head Office">PT. Bukit Artha Persada Arsy Nusantara - Head Office</option>
               </select>
             </div>
+
+            {formData.role === 'participant' && (
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Status Peserta <span className="text-red-500">*</span>
+                </label>
+                <select
+                  name="participant_status"
+                  value={formData.participant_status}
+                  onChange={handleChange}
+                  className={inputClass('participant_status')}
+                >
+                  <option value="">Pilih Status Peserta</option>
+                  <option value="Recruitment Process">Recruitment Process</option>
+                  <option value="Promotion Process">Promotion Process</option>
+                  <option value="Development Process">Development Process</option>
+                  <option value="Mutasi / Rotasi Internal">Mutasi / Rotasi Internal</option>
+                  <option value="Job Fit Re-Assessment">Job Fit Re-Assessment</option>
+                  <option value="Talent Mapping">Talent Mapping</option>
+                  <option value="Internship Assessment">Internship Assessment</option>
+                  <option value="Re-Test / Validating Check">Re-Test / Validating Check</option>
+                </select>
+                {errors.participant_status && (
+                  <p className="mt-1 text-sm text-red-600">{errors.participant_status}</p>
+                )}
+              </div>
+            )}
 
             {formData.role === 'participant' && (
               <div className="md:col-span-2">
@@ -513,20 +554,7 @@ function CreateUser({ onUserCreated, initialRole = 'participant' }) {
           <button
             type="button"
             onClick={() => {
-              setFormData({
-                username: '',
-                password: '',
-                full_name: '',
-                gender: '',
-                age: '',
-                education: '',
-                department: '',
-                position: '',
-                business_unit: '',
-                role: 'participant',
-                class_id: '',
-                assign_all_tests: false
-              });
+              setFormData(getInitialFormData());
               setErrors({});
             }}
             className="text-gray-600 hover:text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors"

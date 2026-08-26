@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useAuth } from './contexts/AuthContext';
 import ParticipantsPage from './pages/ParticipantsPage';
 import ResultsPage from './pages/ResultsPage';
+import ResultAnalyticsPage from './pages/ResultAnalyticsPage';
 import AddParticipantPage from './pages/AddParticipantPage';
 import AddAdminPage from './pages/AddAdminPage';
 import ParticipantProfilePage from './pages/ParticipantProfilePage';
@@ -30,7 +31,8 @@ function AdminLayout({ onLogout }) {
 
     if (canSeeResults) {
         navLinks.push(
-            { to: '/results', label: 'Hasil', icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' }
+            { to: '/results', label: 'Hasil', icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+            { to: '/result-analytics', label: 'Result Analytics', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' }
         );
     }
 
@@ -60,6 +62,7 @@ function AdminLayout({ onLogout }) {
         if (pathname.startsWith('/participants')) return 'Kelola Peserta';
         if (pathname === '/admins') return 'Kelola Admin';
         if (pathname === '/results') return 'Hasil Tes';
+        if (pathname === '/result-analytics') return 'Result Analytics';
         if (pathname === '/security') return 'Dashboard Keamanan';
         return 'Panel Admin';
     };
@@ -138,9 +141,27 @@ function AdminLayout({ onLogout }) {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                             </svg>
                         </button>
-                        <h2 className="text-xl font-bold text-neutral-900 font-display">
-                            {getPageTitle(location.pathname)}
-                        </h2>
+                        {location.pathname === '/result-analytics' ? (
+                            <div className="flex items-center gap-4">
+                                <img src="/logo-h.png" alt="Andamas Group Logo" className="h-10 w-auto" />
+                                <div>
+                                    <h1 className="text-xl font-bold text-neutral-900 leading-tight">RESULT ANALYTICS</h1>
+                                    <p className="text-sm text-neutral-500">Psikotes & Recruitment Assessment - Andamas Group</p>
+                                </div>
+                            </div>
+                        ) : location.pathname === '/' ? (
+                            <div className="flex items-center gap-2.5">
+                                <img src="/logo-h.png" alt="Andamas Group Logo" className="h-8 w-auto" />
+                                <span className="text-xl font-bold text-neutral-900/80 font-display">-</span>
+                                <h2 className="text-xl font-bold text-neutral-900 font-display">
+                                    Dashboard
+                                </h2>
+                            </div>
+                        ) : (
+                            <h2 className="text-xl font-bold text-neutral-900 font-display">
+                                {getPageTitle(location.pathname)}
+                            </h2>
+                        )}
                     </div>
                     
                     {/* User badge - desktop */}
@@ -173,6 +194,7 @@ function AdminLayout({ onLogout }) {
                         {canSeeResults && (
                             <>
                                 <Route path="/results" element={<ResultsPage />} />
+                                <Route path="/result-analytics" element={<ResultAnalyticsPage />} />
                                 <Route path="/participants/:id/decision" element={<ReportDecisionPage />} />
                             </>
                         )}

@@ -296,6 +296,7 @@ def get_participant_summary(user_id: int, db: Session = Depends(get_db), admin: 
         "gender": user.gender,
         "age": user.age,
         "education": user.education,
+        "participant_status": user.participant_status,
         "class_name": user.class_config.name if user.class_config else "Standard",
         "summary": summary_data,
         "existing_decisions": user.report_decisions or {}

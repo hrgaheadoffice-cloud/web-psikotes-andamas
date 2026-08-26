@@ -19,7 +19,8 @@ function EditParticipantModal({ user, onClose, onSaved }) {
         level: '',
         business_unit: '',
         role: 'participant',
-        class_id: ''
+        class_id: '',
+        participant_status: ''
     });
     const [loading, setLoading] = useState(false);
 
@@ -42,7 +43,8 @@ function EditParticipantModal({ user, onClose, onSaved }) {
                 level: user.level || '',
                 business_unit: user.business_unit || '',
                 role: user.role || 'participant',
-                class_id: user.class_id || ''
+                class_id: user.class_id || '',
+                participant_status: user.participant_status || ''
             });
         }
     }, [user]);
@@ -61,6 +63,7 @@ function EditParticipantModal({ user, onClose, onSaved }) {
             age: formData.age === '' ? null : Number(formData.age),
             password: formData.password || undefined,
             class_id: formData.class_id ? Number(formData.class_id) : null,
+            participant_status: formData.participant_status || null,
         };
 
         try {
@@ -280,6 +283,27 @@ function EditParticipantModal({ user, onClose, onSaved }) {
                                         className="mt-1 block w-full border border-neutral-300 rounded-md shadow-sm py-2 px-3 focus:ring-2 focus:ring-primary-500"
                                     />
                                 </div>
+                                {formData.role === 'participant' && (
+                                    <div className="md:col-span-2">
+                                        <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Status Peserta</label>
+                                        <select
+                                            name="participant_status"
+                                            value={formData.participant_status}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full border border-neutral-300 rounded-md shadow-sm py-2 px-3 focus:ring-2 focus:ring-primary-500"
+                                        >
+                                            <option value="">Pilih Status Peserta</option>
+                                            <option value="Recruitment Process">Recruitment Process</option>
+                                            <option value="Promotion Process">Promotion Process</option>
+                                            <option value="Development Process">Development Process</option>
+                                            <option value="Mutasi / Rotasi Internal">Mutasi / Rotasi Internal</option>
+                                            <option value="Job Fit Re-Assessment">Job Fit Re-Assessment</option>
+                                            <option value="Talent Mapping">Talent Mapping</option>
+                                            <option value="Internship Assessment">Internship Assessment</option>
+                                            <option value="Re-Test / Validating Check">Re-Test / Validating Check</option>
+                                        </select>
+                                    </div>
+                                )}
                                 {classes.length > 0 && (
                                     <div className="md:col-span-2">
                                         <label className="block text-xs font-bold text-neutral-500 uppercase tracking-wider mb-1.5">Kelas</label>

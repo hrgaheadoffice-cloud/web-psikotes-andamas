@@ -19,7 +19,7 @@ from models import Response as DBResponse
 from schemas import TestSubmission, Token, UserCreate, UserUpdate
 
 # Import route modules
-from routes import auth, users, tests, assignments, results, admin, iq, sessions
+from routes import auth, users, tests, assignments, results, admin, iq, sessions, filters, analytics, summary
 
 # Import scoring modules (used by assignments route)
 from scoring.disc import score_disc
@@ -27,7 +27,7 @@ from scoring.speed import score_speed
 from scoring.temperament import score_temperament
 from scoring.memory import score_memory
 from scoring.logic import score_logic
-from services.pdf_report import generate_participant_pdf
+# from services.pdf_report import generate_participant_pdf
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -41,13 +41,10 @@ app = FastAPI(
 # =============================================================================
 # CORS Configuration
 # =============================================================================
-cors_origins_str = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
-origins = [origin.strip() for origin in cors_origins_str.split(",")]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -63,7 +60,9 @@ app.include_router(results.router)
 app.include_router(admin.router)
 app.include_router(iq.router)
 app.include_router(sessions.router)
-
+app.include_router(filters.router)
+app.include_router(analytics.router)
+app.include_router(summary.router)
 # =============================================================================
 # Root Endpoint
 # =============================================================================

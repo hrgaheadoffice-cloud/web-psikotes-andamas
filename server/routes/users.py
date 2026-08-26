@@ -59,12 +59,42 @@ def create_user(
     current_user: User = Depends(require_admin)
 ):
     """Create a new user"""
+    if user.role not in ["participant", "admin", "assessor", "superadmin"]:
+        raise HTTPException(status_code=400, detail="Role tidak valid")
+
     # If current user is not superadmin, they cannot create admin/superadmin
     if current_user.role != "superadmin" and user.role in ["admin", "superadmin", "assessor"]:
         raise HTTPException(
             status_code=403,
             detail="Only superadmin can create administrative users"
         )
+
+    if not user.level:
+        raise HTTPException(status_code=400, detail="Level wajib diisi")
+
+    if user.role == "participant":
+        required_fields = {
+            "full_name": user.full_name,
+            "gender": user.gender,
+            "age": user.age,
+            "education": user.education,
+            "department": user.department,
+            "position": user.position,
+            "business_unit": user.business_unit,
+            "level": user.level,
+            "participant_status": user.participant_status,
+        }
+        missing_fields = [label for label, value in required_fields.items() if value is None or (isinstance(value, str) and not value.strip())]
+        if missing_fields:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Field wajib peserta belum lengkap: {', '.join(missing_fields)}"
+            )
+        if user.class_id is None:
+            raise HTTPException(status_code=400, detail="Kelas wajib dipilih untuk peserta")
+    else:
+        if user.age is not None and (user.age < 1 or user.age > 120):
+            raise HTTPException(status_code=400, detail="Usia harus antara 1 hingga 120")
 
     db_user = db.query(User).filter(User.username == user.username).first()
     if db_user:
@@ -88,7 +118,8 @@ def create_user(
         position=user.position,
         business_unit=user.business_unit,
         level=user.level,
-        class_id=user.class_id
+        class_id=user.class_id,
+        participant_status=user.participant_status if user.role == "participant" else None
 
     )
     db.add(new_user)
@@ -126,6 +157,7 @@ def get_user(
         "business_unit": user.business_unit,
         "class_id": user.class_id,
         "level": user.level,
+        "participant_status": user.participant_status,
         "report_decisions": report_decisions,
         "class_name": user.class_config.name if user.class_config else None,
         "created_at": user.created_at
@@ -194,6 +226,8 @@ def update_user(
             user.class_id = user_update.class_id  # type: ignore[assignment]
     if user_update.password is not None and user_update.password != "":
         user.password_hash = hash_password(user_update.password)
+    if user_update.participant_status is not None:
+        user.participant_status = user_update.participant_status  # type: ignore[assignment]
     if user_update.report_decisions is not None:
         if current_user.role not in ["assessor", "superadmin"]:
             raise HTTPException(

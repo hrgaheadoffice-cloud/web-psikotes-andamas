@@ -1,5 +1,5 @@
 # server/schemas.py
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional
 
 # What the user sends to login
@@ -28,11 +28,11 @@ class ClassConfigOut(BaseModel):
 
 # Schema for creating a new user
 class UserCreate(BaseModel):
-    username: str
-    password: str
+    username: str = Field(..., min_length=3)
+    password: str = Field(..., min_length=6)
     role: str = "participant"  # Default to participant
     # NEW FIELDS
-    full_name: str
+    full_name: str = Field(..., min_length=1)
     gender: Optional[str] = None
     age: Optional[int] = None
     education: Optional[str] = None
@@ -41,7 +41,45 @@ class UserCreate(BaseModel):
     business_unit: Optional[str] = None
     class_id: Optional[int] = None
     level: Optional[str] = None
+    participant_status: Optional[str] = None
     report_decisions: Optional[dict] = None
+
+    @field_validator("username", "password", "full_name", "education", "department", "position", "business_unit", "level", "participant_status", mode="before")
+    @classmethod
+    def _strip_strings(cls, value):
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
+    @field_validator("username")
+    @classmethod
+    def _validate_username(cls, value: str):
+        if len(value) < 3:
+            raise ValueError("Username minimal 3 karakter")
+        return value
+
+    @field_validator("password")
+    @classmethod
+    def _validate_password(cls, value: str):
+        if len(value) < 6:
+            raise ValueError("Kata sandi minimal 6 karakter")
+        return value
+
+    @field_validator("full_name")
+    @classmethod
+    def _validate_full_name(cls, value: str):
+        if not value:
+            raise ValueError("Nama lengkap wajib diisi")
+        return value
+
+    @field_validator("age")
+    @classmethod
+    def _validate_age(cls, value):
+        if value is None:
+            return value
+        if value < 1 or value > 120:
+            raise ValueError("Usia harus antara 1 hingga 120")
+        return value
 
 
 class TestSubmission(BaseModel):
@@ -98,6 +136,7 @@ class UserUpdate(BaseModel):
     business_unit: Optional[str] = None
     class_id: Optional[int] = None
     level: Optional[str] = None
+    participant_status: Optional[str] = None
     report_decisions: Optional[dict] = None
 
 # Exam Session schemas
