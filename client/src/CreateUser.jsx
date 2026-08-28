@@ -79,18 +79,20 @@ function CreateUser({ onUserCreated, initialRole = 'participant' }) {
       newErrors.level = 'Level wajib dipilih';
     }
 
-    // Age validation
+    // Age validation (Rentang 17 - 80 Tahun)
     if (formData.age !== '') {
       if (Number.isNaN(parsedAge)) {
-        newErrors.age = 'Usia harus berupa angka';
-      } else if (parsedAge < 1 || parsedAge > 120) {
-        newErrors.age = 'Usia harus antara 1 hingga 120';
+        newErrors.age = 'Usia harus berupa angka valid';
+      } else if (parsedAge < 17) {
+        newErrors.age = 'Usia peserta minimal 17 tahun';
+      } else if (parsedAge > 80) {
+        newErrors.age = 'Usia maksimal adalah 80 tahun';
       }
     }
 
     if (formData.role === 'participant') {
       if (!formData.gender) newErrors.gender = 'Jenis kelamin wajib dipilih untuk peserta';
-      if (parsedAge === null) newErrors.age = 'Usia wajib diisi untuk peserta';
+      if (parsedAge === null) newErrors.age = 'Usia wajib diisi untuk peserta (minimal 17 tahun)';
       if (!formData.education.trim()) newErrors.education = 'Pendidikan wajib diisi untuk peserta';
       if (!formData.department) newErrors.department = 'Departemen wajib dipilih untuk peserta';
       if (!formData.position.trim()) newErrors.position = 'Jabatan wajib diisi untuk peserta';
@@ -207,7 +209,7 @@ function CreateUser({ onUserCreated, initialRole = 'participant' }) {
     mt-1 block w-full border rounded-md shadow-sm py-2 px-3 
     focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
     transition-colors duration-200
-    ${errors[fieldName] ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'border-gray-300'}
+    ${errors[fieldName] ? 'border-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50' : 'border-gray-300'}
   `;
 
   return (
@@ -313,46 +315,58 @@ function CreateUser({ onUserCreated, initialRole = 'participant' }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Jenis Kelamin</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Jenis Kelamin {formData.role === 'participant' && <span className="text-red-500">*</span>}
+              </label>
               <select
                 name="gender"
                 value={formData.gender || ''}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={inputClass('gender')}
               >
                 <option value="">Pilih jenis kelamin</option>
                 <option value="Male">Laki-laki</option>
                 <option value="Female">Perempuan</option>
               </select>
+              {errors.gender && (
+                <p className="mt-1 text-sm text-red-600">{errors.gender}</p>
+              )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Age</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Usia {formData.role === 'participant' && <span className="text-red-500">*</span>}
+              </label>
               <input
                 type="number"
                 name="age"
                 value={formData.age}
                 onChange={handleChange}
-                min="1"
-                max="120"
-                placeholder="contoh: 25"
+                min="17"
+                max="80"
+                placeholder="contoh: 25 (min. 17 tahun)"
                 className={inputClass('age')}
               />
               {errors.age && (
-                <p className="mt-1 text-sm text-red-600">{errors.age}</p>
+                <p className="mt-1 text-sm text-red-600 font-medium">{errors.age}</p>
               )}
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">Pendidikan</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Pendidikan {formData.role === 'participant' && <span className="text-red-500">*</span>}
+              </label>
               <input
                 type="text"
                 name="education"
                 value={formData.education}
                 onChange={handleChange}
                 placeholder="contoh: S1 Jurusan - Universitas"
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={inputClass('education')}
               />
+              {errors.education && (
+                <p className="mt-1 text-sm text-red-600">{errors.education}</p>
+              )}
             </div>
           </div>
         </div>
@@ -387,12 +401,14 @@ function CreateUser({ onUserCreated, initialRole = 'participant' }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Departemen</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Departemen {formData.role === 'participant' && <span className="text-red-500">*</span>}
+              </label>
               <select
                 name="department"
                 value={formData.department}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={inputClass('department')}
               >
                 <option value="">Pilih Departemen</option>
                 <option value="HRGA">HRGA</option>
@@ -405,15 +421,20 @@ function CreateUser({ onUserCreated, initialRole = 'participant' }) {
                 <option value="Plant">Plant</option>
                 <option value="SCM">SCM</option>
               </select>
+              {errors.department && (
+                <p className="mt-1 text-sm text-red-600">{errors.department}</p>
+              )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Unit Bisnis</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Unit Bisnis {formData.role === 'participant' && <span className="text-red-500">*</span>}
+              </label>
               <select
                 name="business_unit"
                 value={formData.business_unit}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={inputClass('business_unit')}
               >
                 <option value="">Pilih Unit Bisnis</option>
                 <option value="PT. Long Daliq Primacoal - BP">PT. Long Daliq Primacoal - BP</option>
@@ -429,6 +450,9 @@ function CreateUser({ onUserCreated, initialRole = 'participant' }) {
                 <option value="PT. Bukit Artha Persada Arsy Nusantara - Site">PT. Bukit Artha Persada Arsy Nusantara - Site</option>
                 <option value="PT. Bukit Artha Persada Arsy Nusantara - Head Office">PT. Bukit Artha Persada Arsy Nusantara - Head Office</option>
               </select>
+              {errors.business_unit && (
+                <p className="mt-1 text-sm text-red-600">{errors.business_unit}</p>
+              )}
             </div>
 
             {formData.role === 'participant' && (
@@ -460,15 +484,20 @@ function CreateUser({ onUserCreated, initialRole = 'participant' }) {
 
             {formData.role === 'participant' && (
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700">Jabatan</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Jabatan <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   name="position"
                   value={formData.position}
                   onChange={handleChange}
                   placeholder="contoh: Manajer SDM"
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={inputClass('position')}
                 />
+                {errors.position && (
+                  <p className="mt-1 text-sm text-red-600">{errors.position}</p>
+                )}
               </div>
             )}
 
@@ -482,8 +511,7 @@ function CreateUser({ onUserCreated, initialRole = 'participant' }) {
                   name="class_id"
                   value={formData.class_id || ''}
                   onChange={handleChange}
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
+                  className={inputClass('class_id')}
                 >
                   <option value="">Pilih kelas</option>
                   {classes.map(cls => (
@@ -492,10 +520,11 @@ function CreateUser({ onUserCreated, initialRole = 'participant' }) {
                     </option>
                   ))}
                 </select>
+                {errors.class_id && (
+                  <p className="mt-1 text-sm text-red-600">{errors.class_id}</p>
+                )}
               </div>
             )}
-
-
 
             {/* Assign All Tests Checkbox - Only for participants */}
             {formData.role === 'participant' && (

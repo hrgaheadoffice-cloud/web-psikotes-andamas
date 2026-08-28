@@ -152,7 +152,7 @@ function AdminLayout({ onLogout }) {
                         ) : location.pathname === '/' ? (
                             <div className="flex items-center gap-2.5">
                                 <img src="/logo-h.png" alt="Andamas Group Logo" className="h-8 w-auto" />
-                                <span className="text-xl font-bold text-neutral-900/80 font-display">-</span>
+                                <span className="text-xl font-bold text-neutral-900/80 font-display"></span>
                                 <h2 className="text-xl font-bold text-neutral-900 font-display">
                                     Dashboard
                                 </h2>
