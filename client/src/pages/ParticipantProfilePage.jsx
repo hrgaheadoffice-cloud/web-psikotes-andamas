@@ -338,31 +338,39 @@ function ParticipantProfilePage() {
                         </div>
                     </div>
 
-                    {/* Secondary Specs Grid */}
-                    <div className="bg-white border-t-2 border-neutral-900 p-6 md:p-8 grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-6">
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Username</label>
-                            <p className="font-mono text-sm font-bold text-neutral-700 select-all">@{user.username}</p>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Jenis Kelamin</label>
-                            <p className="text-sm font-bold text-neutral-900 uppercase">
-                                {user.gender === 'Male' ? 'Laki-laki' : (user.gender === 'Female' ? 'Perempuan' : (user.gender || '–'))}
-                            </p>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Usia</label>
-                            <p className="text-sm font-bold text-neutral-900">{user.age ? `${user.age} Tahun` : '–'}</p>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Pendidikan Terakhir</label>
-                            <p className="text-sm font-bold text-neutral-900 uppercase">{user.education || '–'}</p>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Status Peserta</label>
-                            <p className="font-semibold text-sm text-neutral-700">{user.participant_status || '–'}</p>
-                        </div>
-                    </div>
+{/* Secondary Specs Grid */}
+<div className="bg-white border-t-2 border-neutral-900 p-6 md:p-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-8 gap-y-6">
+    <div className="space-y-1">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Username</label>
+        <p className="font-mono text-sm font-bold text-neutral-700 select-all">@{user.username}</p>
+    </div>
+    <div className="space-y-1">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Status Peserta</label>
+        <p className="text-sm font-bold text-neutral-900 uppercase">
+            {user.participant_status ? (
+                <span className="inline-block px-2.5 py-0.5 text-xs font-black bg-blue-50 text-blue-700 rounded border border-blue-300">
+                    {user.participant_status}
+                </span>
+            ) : (
+                '–'
+            )}
+        </p>
+    </div>
+    <div className="space-y-1">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Jenis Kelamin</label>
+        <p className="text-sm font-bold text-neutral-900 uppercase">
+            {user.gender === 'Male' ? 'Laki-laki' : (user.gender === 'Female' ? 'Perempuan' : (user.gender || '–'))}
+        </p>
+    </div>
+    <div className="space-y-1">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Usia</label>
+        <p className="text-sm font-bold text-neutral-900">{user.age ? `${user.age} Tahun` : '–'}</p>
+    </div>
+    <div className="space-y-1">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Pendidikan Terakhir</label>
+        <p className="text-sm font-bold text-neutral-900 uppercase">{user.education || '–'}</p>
+    </div>
+</div>
                 </div>
             </div>
 
@@ -399,9 +407,10 @@ function ParticipantProfilePage() {
 
                                     const formatIndoDate = (dateStr) => {
                                         if (!dateStr) return null;
-                                        return new Date(dateStr).toLocaleString('id-ID', {
-                                            day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
-                                            timeZone: 'Asia/Jakarta'
+                                        const parsedDate = new Date(dateStr);
+                                        if (Number.isNaN(parsedDate.getTime())) return null;
+                                        return parsedDate.toLocaleString('id-ID', {
+                                            day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
                                         });
                                     };
 
@@ -435,13 +444,30 @@ function ParticipantProfilePage() {
                                                     </span>
                                                 </div>
                                             </td>
-                                            <td className="px-5 py-3 border-r border-neutral-100 text-center font-mono text-[10px]">
+                                                                                                                                    <td className="px-5 py-3 border-r border-neutral-100 text-center font-mono text-[10px]">
                                                 {(() => {
-                                                    const duration = result?.time_taken || (started_at && completed_at ? Math.floor((new Date(completed_at) - new Date(started_at)) / 1000) : 0);
-                                                    if (!duration) return '–';
+                                                    if (a.status !== 'completed') return '�';
+                                                    const duration = result?.time_taken;
+                                                    if (typeof duration === 'number' && Number.isFinite(duration)) {
+                                                        const positiveDuration = Math.max(0, duration);
+                                                        const mins = Math.floor(positiveDuration / 60);
+                                                        const secs = Math.floor(positiveDuration % 60);
+                                                        return (
+                                                            <span className="font-bold text-neutral-900">
+                                                                {mins}m {secs}s
+                                                            </span>
+                                                        );
+                                                    }
+                                                    if (!started_at || !completed_at) return '�';
+                                                    const startDate = new Date(started_at);
+                                                    const endDate = new Date(completed_at);
+                                                    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return '�';
+                                                    const diffSeconds = Math.abs(Math.floor((endDate - startDate) / 1000));
+                                                    const mins = Math.floor(diffSeconds / 60);
+                                                    const secs = Math.floor(diffSeconds % 60);
                                                     return (
                                                         <span className="font-bold text-neutral-900">
-                                                            {Math.floor(duration / 60)}m {duration % 60}s
+                                                            {mins}m {secs}s
                                                         </span>
                                                     );
                                                 })()}
@@ -1179,3 +1205,4 @@ function ParticipantProfilePage() {
 }
 
 export default ParticipantProfilePage;
+

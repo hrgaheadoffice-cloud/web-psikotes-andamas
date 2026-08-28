@@ -30,6 +30,25 @@ from utils import get_max_score, get_now_jakarta
 router = APIRouter(tags=["assignments"])
 
 
+# ==================== TIME HELPER FUNCTIONS ====================
+
+def _get_now_wib_naive() -> datetime:
+    """Mengambil waktu WIB saat ini sebagai naive datetime (tanpa offset info)"""
+    now = get_now_jakarta()
+    if getattr(now, "tzinfo", None) is not None:
+        now = now.replace(tzinfo=None)
+    return now
+
+
+def _to_naive(dt: Optional[datetime]) -> Optional[datetime]:
+    """Mengonversi datetime timezone-aware menjadi naive datetime jika ada tzinfo"""
+    if dt is None:
+        return None
+    if getattr(dt, "tzinfo", None) is not None:
+        return dt.replace(tzinfo=None)
+    return dt
+
+
 # ==================== ASSIGNMENT CRUD ====================
 
 @router.get("/assignments/")
@@ -43,12 +62,7 @@ def get_assignments(
     if user_id is not None:
         query = query.filter(Assignment.user_id == user_id)
     
-    # Load all assignments first to avoid cursor issues during auto-submit
     assignments = query.all()
-    
-    # We removed the lazy auto-submit loop from here because it was causing 500 errors 
-    # when database transactions failed during a GET request.
-    # Assignments will now be returned with their current database status.
 
     result = []
     for a in assignments:
@@ -98,7 +112,6 @@ def get_my_assignments(db: Session = Depends(get_db), current_user: User = Depen
     """Get current user's assignments"""
     assignments = db.query(Assignment).filter(Assignment.user_id == current_user.id).all()
     
-    # Load class config once if the user has one
     time_overrides = {}
     if current_user.class_id:
         class_config = db.query(ClassConfig).filter(ClassConfig.id == current_user.class_id).first()
@@ -122,17 +135,16 @@ def get_my_assignments(db: Session = Depends(get_db), current_user: User = Depen
         
         # Check for auto-submit if in progress and timed out
         if a.status == "in_progress" and a.started_at and time_limit > 0:
-            elapsed = (get_now_jakarta() - a.started_at).total_seconds()
+            now = _get_now_wib_naive()
+            start = _to_naive(a.started_at)
+            elapsed = (now - start).total_seconds()
             if elapsed > (time_limit + 30): # 30s grace period
                 try:
-                    # Auto-submit using background process logic
                     process_test_submission(a, db, is_auto=True)
-                    # Refresh assignment from DB to get updated status
                     db.refresh(a)
                 except Exception as e:
                     print(f"Auto-submit failed for assignment {a.id}: {e}")
             
-        # Ensure time_limit is a number before division
         time_in_minutes = (time_limit // 60) if isinstance(time_limit, (int, float)) and time_limit > 0 else 0
         
         result.append({
@@ -168,15 +180,18 @@ def start_test(
     # Session Time-Lock Check
     if assignment.session_id:
         session = assignment.session
-        now = get_now_jakarta()
+        now = _get_now_wib_naive()
+        session_start = _to_naive(session.start_time)
+        session_end = _to_naive(session.end_time)
+        
         if not session.is_unlocked:
-            if now < session.start_time:
-                remaining = int((session.start_time - now).total_seconds())
+            if session_start and now < session_start:
+                remaining = int((session_start - now).total_seconds())
                 raise HTTPException(
                     status_code=403, 
                     detail=f"Tes ini dijadwalkan akan dimulai dalam {remaining} detik."
                 )
-            if session.end_time and now > session.end_time and assignment.status == "pending":
+            if session_end and now > session_end and assignment.status == "pending":
                 raise HTTPException(
                     status_code=403,
                     detail="Sesi ujian ini telah berakhir dan tidak dapat dimulai lagi."
@@ -184,10 +199,9 @@ def start_test(
 
     if assignment.status == "pending":
         assignment.status = "in_progress"
-        assignment.started_at = get_now_jakarta()
+        assignment.started_at = _get_now_wib_naive()
         db.commit()
 
-    # Determine time limit: check user's class override first, then fall back to test default
     time_limit = assignment.test.time_limit
     if current_user.class_id:
         class_config = db.query(ClassConfig).filter(ClassConfig.id == current_user.class_id).first()
@@ -196,14 +210,12 @@ def start_test(
             if assignment.test.code in time_overrides:
                 override = time_overrides[assignment.test.code]
                 if isinstance(override, dict):
-                    # For MEM/IQ, we use the specific sub-times in the component, 
-                    # but for the main timer we need a scalar.
                     if "encoding" in override and "recall" in override:
                         time_limit = override["encoding"] + override["recall"]
                     elif "phases" in override and isinstance(override["phases"], list):
                         time_limit = sum(override["phases"])
                     else:
-                        time_limit = override # Might still be a dict if unknown
+                        time_limit = override
                 else:
                     time_limit = override
 
@@ -217,7 +229,7 @@ def start_test(
                 "label": opt.label,
                 "content": opt.content
             })
-        q_settings = q.meta_data  # Store in variable
+        q_settings = q.meta_data
         output.append({
             "id": q.id,
             "content": q.content,
@@ -226,7 +238,6 @@ def start_test(
             "settings": q_settings
         })
     test_settings = assignment.test.settings or {}
-    # Apply special overrides for Memory Test (MEM) if defined in class config
     if assignment.test.code == "MEM" and current_user.class_id:
         class_config = db.query(ClassConfig).filter(ClassConfig.id == current_user.class_id).first()
         if class_config:
@@ -238,14 +249,14 @@ def start_test(
                 if "recall" in mem_overrides:
                     test_settings["recall_time"] = mem_overrides["recall"]
 
-    # Calculate remaining time if the test is already in progress
     remaining_time = time_limit
     if assignment.status == "in_progress" and assignment.started_at:
-        elapsed = (get_now_jakarta() - assignment.started_at).total_seconds()
+        now = _get_now_wib_naive()
+        start = _to_naive(assignment.started_at)
+        elapsed = (now - start).total_seconds()
         if time_limit > 0:
             remaining_time = max(0, int(time_limit - elapsed))
 
-    # Fetch existing answers to restore session if needed
     responses = db.query(Response).filter(Response.assignment_id == assignment_id).all()
     existing_answers = {}
     
@@ -257,7 +268,6 @@ def start_test(
             if r.selection_type in ["most", "least"]:
                 existing_answers[q_id][r.selection_type] = r.selected_option_id
     elif assignment.test.code == "LOGIC":
-        # Handle multi-select questions (comma-separated string)
         multi_map = {}
         for r in responses:
             if r.selection_type == "multi":
@@ -286,7 +296,7 @@ def start_test(
 def save_answer(
     assignment_id: int,
     question_id: int,
-    option_id: Optional[str] = None, # can be comma-separated for multi
+    option_id: Optional[str] = None,
     type: str = "single",
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -296,16 +306,13 @@ def save_answer(
     if not assignment or assignment.status != "in_progress":
         raise HTTPException(status_code=400, detail="Test is not in progress or unauthorized")
 
-    # Delete existing responses for this question AND TYPE to handle updates (e.g. DISC most/least)
     db.query(Response).filter(
         Response.assignment_id == assignment_id, 
         Response.question_id == question_id,
         Response.selection_type == type
     ).delete()
 
-    # Create new response(s)
     if option_id and "," in str(option_id):
-        # Multi-select
         ids = [int(x.strip()) for x in str(option_id).split(",") if x.strip()]
         for opt_id in ids:
             resp = Response(
@@ -318,7 +325,6 @@ def save_answer(
             )
             db.add(resp)
     else:
-        # Single select
         resp = Response(
             user_id=current_user.id,
             test_id=assignment.test_id,
@@ -335,21 +341,17 @@ def save_answer(
 
 def process_test_submission(assignment, db: Session, submission_data: Optional[TestSubmission] = None, is_auto: bool = False):
     """
-    Core logic to score and complete a test. 
-    Can be called manually (via submit_test) or automatically (via lazy auto-close).
+    Core logic to score and complete a test.
     """
-    # 1. Prepare answers list
     answers_to_score = []
     device_info = "Unknown"
     time_taken = 0
 
     if submission_data:
-        # Manual submission: use provided answers and save them to DB
         answers_to_score = submission_data.answers
         device_info = submission_data.device_info or "Unknown"
         time_taken = submission_data.time_taken
         
-        # Save answers to Response table (clear existing first)
         db.query(Response).filter(Response.assignment_id == assignment.id).delete()
         for ans in answers_to_score:
             opt_id = ans.get("option_id")
@@ -374,24 +376,19 @@ def process_test_submission(assignment, db: Session, submission_data: Optional[T
                     selection_type=ans.get("type", "single")
                 ))
     else:
-        # Auto-submission: fetch answers already saved in Response table
         responses = db.query(Response).filter(Response.assignment_id == assignment.id).all()
-        # Group by question_id for scoring format
         q_map = {}
         for r in responses:
             if r.question_id not in q_map:
                 q_map[r.question_id] = {"question_id": r.question_id, "option_id": r.selected_option_id, "type": r.selection_type}
             if r.selection_type == "multi":
-                # Collect multi IDs
                 curr = str(q_map[r.question_id]["option_id"])
                 if r.selected_option_id and str(r.selected_option_id) not in curr:
                     q_map[r.question_id]["option_id"] = f"{curr},{r.selected_option_id}" if curr != "None" else str(r.selected_option_id)
         
         answers_to_score = list(q_map.values())
         device_info = "Server Auto-Submit"
-        # time_taken will be calculated from started_at below
 
-    # 2. Score
     test_code = assignment.test.code
     score = 0
     details = {}
@@ -400,7 +397,6 @@ def process_test_submission(assignment, db: Session, submission_data: Optional[T
     scoring_error = None
 
     try:
-        # Reuse existing scoring blocks (fetching questions here)
         questions = db.query(Question).options(joinedload(Question.options)).filter(Question.test_id == assignment.test_id).all()
         total_questions = len(questions)
 
@@ -446,21 +442,25 @@ def process_test_submission(assignment, db: Session, submission_data: Optional[T
         details["scoring_error"] = scoring_error
         answered_count = len({ans.get("question_id") for ans in answers_to_score})
 
-    # 3. Finalize Result
+    # Menggunakan helper naive WIB agar selaras dengan PostgreSQL `timestamp without time zone`
+    completed_at = _get_now_wib_naive()
+    started_at = _to_naive(assignment.started_at)
+
     is_complete = answered_count >= total_questions
     if details is None: details = {}
     details["session"] = {
         "device": device_info,
-        "started_at": assignment.started_at.isoformat() if assignment.started_at else None,
-        "completed_at": get_now_jakarta().isoformat(),
+        "started_at": started_at.isoformat() if started_at else None,
+        "completed_at": completed_at.isoformat(),
         "is_auto": is_auto
     }
     details.update({"answered_count": answered_count, "total_questions": total_questions, "is_complete": is_complete})
 
-    # Server-side time taken
+    # Hitung durasi waktu server (time_taken)
     server_time_taken = time_taken
-    if assignment.started_at:
-        server_time_taken = int((get_now_jakarta() - assignment.started_at).total_seconds())
+    if started_at:
+        server_time_taken = int((completed_at - started_at).total_seconds())
+    server_time_taken = max(0, server_time_taken)
 
     result = Result(
         user_id=assignment.user_id,
@@ -469,7 +469,7 @@ def process_test_submission(assignment, db: Session, submission_data: Optional[T
         score=score,
         time_taken=server_time_taken,
         details=details,
-        completed_at=get_now_jakarta()
+        completed_at=completed_at
     )
     try:
         db.add(result)
@@ -496,7 +496,6 @@ def submit_test(
     if assignment.status != "in_progress":
         raise HTTPException(status_code=400, detail="Test is not in progress")
     
-    # Check for existing result
     if db.query(Result).filter(Result.assignment_id == assignment_id).first():
         raise HTTPException(status_code=400, detail="Already submitted")
 
@@ -549,11 +548,9 @@ def reset_assignment(
     if not assignment:
         raise HTTPException(status_code=404, detail="Assignment not found")
 
-    # Delete the assignment (cascade handles: Response, Result, ExitLog)
     db.delete(assignment)
     db.commit()
     
-    # Recreate the assignment with pending status
     new_assignment = Assignment(
         user_id=assignment.user_id,
         test_id=assignment.test_id,
