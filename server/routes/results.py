@@ -202,7 +202,7 @@ def export_participant_docx(
     
     results = list(latest_results.values())
 
-    docx_bytes = generate_participant_docx(user, results)
+    docx_bytes = generate_participant_docx(user, results, assessor=assessor)
 
     return Response(
         content=docx_bytes,

@@ -352,7 +352,7 @@ function ParticipantProfilePage() {
                     {user.participant_status}
                 </span>
             ) : (
-                '–'
+                '–' 
             )}
         </p>
     </div>

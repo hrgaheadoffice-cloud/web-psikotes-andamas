@@ -391,12 +391,24 @@ SUMMARY_CONFIGS = [
 ]
 
 
-def generate_participant_docx(user, results):
+def generate_participant_docx(user, results, assessor=None):
     """
     Generate Word report for a participant.
     user: User model instance
     results: list of Result model instances (latest for each test)
+    assessor: assessor user/admin object or assessor name string
     """
+    if isinstance(assessor, str):
+        assessor_name = assessor.strip() or "-"
+    else:
+        assessor_name = (
+            getattr(assessor, "full_name", None)
+            or getattr(assessor, "username", None)
+            or "-"
+        )
+        if isinstance(assessor_name, str):
+            assessor_name = assessor_name.strip() or "-"
+
     doc = Document()
     
     # --- GLOBAL STYLE (Abadi Font) ---
@@ -488,7 +500,7 @@ def generate_participant_docx(user, results):
         ("Nama Lengkap", user.full_name or user.username, "Tanggal Tes", tgl_tes_str),
         ("Usia / Gender", f"{user.age or '-'} Tahun / {user.gender or '-'}", "Pendidikan Terakhir", user.education or "-"),
         ("Posisi Dilamar", user.position or "-", "Departement", user.department or "-"),
-        ("Status", "Internal / Eksternal", "Assessor", "[Nama Assessor]")
+        ("Status", user.participant_status or "-", "Assessor", assessor_name)
     ]
     
     for i, row_data in enumerate(data):
