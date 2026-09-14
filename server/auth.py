@@ -1,6 +1,5 @@
-# server/auth.py
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -9,7 +8,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import User
 
-# This context tells passlib to use the bcrypt algorithm
+# Context passlib untuk algoritma bcrypt
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def hash_password(password: str):
@@ -21,20 +20,21 @@ def verify_password(plain_password, hashed_password):
     except Exception:
         return False
 
-# Security settings from environment variables
+# Security settings dari environment variables
 SECRET_KEY = os.getenv("SECRET_KEY", "your-fallback-secret-key-change-in-production")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "180"))
+# Durasi token dinaikkan jadi 720 menit (12 jam)
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "720"))
 
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    # Pake timezone.utc biar sinkron sama jam server VPS (WIB)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-
-# This tells FastAPI where to look for the token (in the Authorization header)
+# Schema token Authorization header
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
@@ -56,8 +56,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if user is None:
         raise credentials_exception
     
-    # Session ID validation (Double Login Prevention)
-    # Note: If token_sid is missing (legacy tokens), we allow it once but it will fail on next login
+    # Validasi Session ID (Mencegah double login)
     if user.current_session_id and token_sid != user.current_session_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
