@@ -137,7 +137,7 @@ function DISCTest({ assignmentId }) {
 
     // ----- Render DISC table -----
     return (
-        <div className="min-h-screen bg-gray-100 flex flex-col">
+        <div className="min-h-screen bg-gray-100 flex flex-col notranslate" translate="no">
             {/* Header with timer */}
             <div className="bg-white shadow px-3 sm:p-4 flex justify-between items-center sticky top-0 z-10">
                 <h1 className="font-bold text-base sm:text-lg truncate max-w-[150px] sm:max-w-none">{testData?.test_name}</h1>

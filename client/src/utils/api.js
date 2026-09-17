@@ -54,7 +54,8 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 403) {
       const message = error.response?.data?.detail || 'Anda tidak memiliki izin untuk melakukan tindakan ini';
       console.error('Forbidden:', message);
-      return Promise.reject(new Error(message));
+      // Preserve the Axios error so callers can reliably inspect response.status.
+      return Promise.reject(error);
     }
 
     // Handle 404 Not Found

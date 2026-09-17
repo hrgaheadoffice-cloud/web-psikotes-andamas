@@ -290,7 +290,7 @@ export function PhaseTest({ phase, assignmentId, onReturnToHub, isLocked, syncAn
   const pct = ((currentIndex + 1) / questions.length) * 100;
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
+    <div className="min-h-screen bg-gray-100 flex flex-col notranslate" translate="no">
       {/* Header */}
       <div className="bg-white shadow px-4 py-3 flex justify-between items-center sticky top-0 z-10">
         <div>
