@@ -390,7 +390,11 @@ def bulk_create_users(
                 row_dict[headers[col_idx]] = str(val) if val else ''
             rows.append(row_dict)
 
-    required_fields = ['username', 'password', 'full_name', 'class', 'level']
+    required_fields = [
+        'username', 'password', 'full_name', 'age', 'gender', 'education',
+        'department', 'position', 'level', 'unit_bisnis', 'participant_status', 'class'
+    ]
+    expected_headers = required_fields
     VALID_LEVELS = [
         "Operator / Mekanik", 
         "Admin / Non - Staff", 
@@ -398,6 +402,38 @@ def bulk_create_users(
         "Supervisor / Section Head", 
         "Superintendent / Dept. Head / Management"
     ]
+    VALID_GENDERS = ['Male', 'Female']
+    VALID_DEPARTMENTS = ['HRGA', 'Production', 'Engineering', 'HSE', 'Legal', 'FAT', 'CSR', 'Plant', 'SCM']
+    VALID_BUSINESS_UNITS = [
+        'PT. Long Daliq Primacoal - BP',
+        'PT. Long Daliq Primacoal - SPGA',
+        'PT. Long Daliq Primacoal - Head Office',
+        'PT. Muncul Kilau Persada',
+        'PT. Batubara Lahat',
+        'PT. Batubara Lahat - Head Office',
+        'PT. Andamas Global Energi',
+        'PT. Andamas Global Energi - Head Office',
+        'PT. Long Daliq Logistik',
+        'PT. Andamas Propertindo',
+        'PT. Bukit Artha Persada Arsy Nusantara - Site',
+        'PT. Bukit Artha Persada Arsy Nusantara - Head Office'
+    ]
+    VALID_PARTICIPANT_STATUSES = [
+        'Recruitment Process', 'Promotion Process', 'Development Process',
+        'Mutasi / Rotasi Internal', 'Job Fit Re-Assessment', 'Talent Mapping',
+        'Internship Assessment', 'Re-Test / Validating Check'
+    ]
+
+    if not rows:
+        raise HTTPException(status_code=400, detail="File tidak memiliki baris data")
+
+    actual_headers = list(rows[0].keys())
+    missing_headers = [field for field in expected_headers if field not in actual_headers]
+    if missing_headers:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Header wajib tidak lengkap. Kolom yang hilang: {', '.join(missing_headers)}"
+        )
     results = {
         "total": len(rows),
         "success": 0,
@@ -407,8 +443,8 @@ def bulk_create_users(
     created_users = []
 
     for row_num, row in enumerate(rows, start=2):
-        # Skip empty rows (common in Excel/CSV exports)
-        if not any(str(v).strip() for v in row.values()) or not str(row.get('username', '')).strip():
+        # Ignore fully empty trailing spreadsheet rows, but reject partially filled rows.
+        if not any(str(row.get(field, '')).strip() for field in expected_headers):
             continue
 
         # Allow 'kelas' as an alias for 'class' in the CSV
@@ -430,6 +466,37 @@ def bulk_create_users(
         full_name = str(row['full_name']).strip()
         class_name = str(row['class']).strip()
         level_input = str(row['level']).strip()
+        gender_input = str(row['gender']).strip()
+        department_input = str(row['department']).strip()
+        business_unit_input = str(row['unit_bisnis']).strip()
+        participant_status_input = str(row['participant_status']).strip()
+
+        def normalize_choice(value, choices):
+            return next((choice for choice in choices if choice.lower() == value.lower()), None)
+
+        gender = normalize_choice(gender_input, VALID_GENDERS)
+        if not gender:
+            results["failed"] += 1
+            results["errors"].append(f"Baris {row_num}: Gender '{gender_input}' tidak valid. Gunakan: {', '.join(VALID_GENDERS)}")
+            continue
+
+        department = normalize_choice(department_input, VALID_DEPARTMENTS)
+        if not department:
+            results["failed"] += 1
+            results["errors"].append(f"Baris {row_num}: Department '{department_input}' tidak valid. Gunakan: {', '.join(VALID_DEPARTMENTS)}")
+            continue
+
+        business_unit = normalize_choice(business_unit_input, VALID_BUSINESS_UNITS)
+        if not business_unit:
+            results["failed"] += 1
+            results["errors"].append(f"Baris {row_num}: Unit Bisnis '{business_unit_input}' tidak valid. Gunakan salah satu nilai resmi.")
+            continue
+
+        participant_status = normalize_choice(participant_status_input, VALID_PARTICIPANT_STATUSES)
+        if not participant_status:
+            results["failed"] += 1
+            results["errors"].append(f"Baris {row_num}: Status Peserta '{participant_status_input}' tidak valid. Gunakan: {', '.join(VALID_PARTICIPANT_STATUSES)}")
+            continue
 
         # Normalize level (case-insensitive)
         level = next((l for l in VALID_LEVELS if l.lower() == level_input.lower()), None)
@@ -457,11 +524,12 @@ def bulk_create_users(
             'username': username,
             'full_name': full_name,
             'age': row.get('age') if str(row.get('age', '')).strip() else None,
-            'gender': str(row.get('gender', '')).strip() or None,
-            'education': str(row.get('education', '')).strip() or None,
-            'department': str(row.get('department', '')).strip() or None,
-            'position': str(row.get('position', '')).strip() or None,
-            'business_unit': str(business_unit_val).strip() if business_unit_val else None,
+            'gender': gender,
+            'education': str(row['education']).strip(),
+            'department': department,
+            'position': str(row['position']).strip(),
+            'business_unit': business_unit,
+            'participant_status': participant_status,
             'level': level,
             'role': 'participant'
         }
@@ -485,6 +553,7 @@ def bulk_create_users(
             department=user_data['department'],
             position=user_data['position'],
             business_unit=user_data['business_unit'],
+            participant_status=user_data['participant_status'],
             level=user_data['level'],
             class_id=class_config.id
         )

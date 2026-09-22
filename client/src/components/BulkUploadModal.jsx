@@ -1,19 +1,45 @@
 // client/src/components/BulkUploadModal.jsx
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../utils/api';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import Swal from 'sweetalert2';
 
+const BULK_COLUMNS = [
+    'username', 'password', 'full_name', 'age', 'gender', 'education',
+    'department', 'position', 'level', 'unit_bisnis', 'participant_status', 'class'
+];
+const VALID_GENDERS = ['Male', 'Female'];
+const VALID_DEPARTMENTS = ['HRGA', 'Production', 'Engineering', 'HSE', 'Legal', 'FAT', 'CSR', 'Plant', 'SCM'];
+const VALID_LEVELS = [
+    'Operator / Mekanik', 'Admin / Non - Staff', 'Foreman / Officer',
+    'Supervisor / Section Head', 'Superintendent / Dept. Head / Management'
+];
+const VALID_BUSINESS_UNITS = [
+    'PT. Long Daliq Primacoal - BP', 'PT. Long Daliq Primacoal - SPGA',
+    'PT. Long Daliq Primacoal - Head Office', 'PT. Muncul Kilau Persada',
+    'PT. Batubara Lahat', 'PT. Batubara Lahat - Head Office',
+    'PT. Andamas Global Energi', 'PT. Andamas Global Energi - Head Office',
+    'PT. Long Daliq Logistik', 'PT. Andamas Propertindo',
+    'PT. Bukit Artha Persada Arsy Nusantara - Site',
+    'PT. Bukit Artha Persada Arsy Nusantara - Head Office'
+];
+const VALID_PARTICIPANT_STATUSES = [
+    'Recruitment Process', 'Promotion Process', 'Development Process',
+    'Mutasi / Rotasi Internal', 'Job Fit Re-Assessment', 'Talent Mapping',
+    'Internship Assessment', 'Re-Test / Validating Check'
+];
+
+const matchesChoice = (value, choices) => choices.some(choice => choice.toLowerCase() === value.toLowerCase());
+
 function BulkUploadModal({ onClose, onSuccess }) {
-    const { token } = useAuth();
     const [file, setFile] = useState(null);
     const [previewData, setPreviewData] = useState([]);
     const [assignAll, setAssignAll] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [results, setResults] = useState(null);
+    const [validationErrors, setValidationErrors] = useState([]);
     const fileInputRef = useRef();
 
     const [classes, setClasses] = useState([]);
@@ -38,11 +64,55 @@ function BulkUploadModal({ onClose, onSuccess }) {
         };
     }, []);
 
+    const validateRows = (headers, rows) => {
+        const errors = [];
+        const missingHeaders = BULK_COLUMNS.filter(column => !headers.includes(column));
+        if (missingHeaders.length > 0) {
+            return [`Header wajib tidak lengkap. Kolom yang hilang: ${missingHeaders.join(', ')}`];
+        }
+
+        rows.forEach((row, index) => {
+            const rowNumber = index + 2;
+            const missing = BULK_COLUMNS.filter(column => !String(row[column] ?? '').trim());
+            if (missing.length > 0) {
+                errors.push(`Baris ${rowNumber}: Kolom kosong: ${missing.join(', ')}`);
+                return;
+            }
+
+            const age = Number(row.age);
+            if (!Number.isInteger(age) || age < 17 || age > 80) {
+                errors.push(`Baris ${rowNumber}: Usia harus berupa angka bulat 17-80.`);
+            }
+            if (!matchesChoice(String(row.gender).trim(), VALID_GENDERS)) errors.push(`Baris ${rowNumber}: Gender tidak valid.`);
+            if (!matchesChoice(String(row.department).trim(), VALID_DEPARTMENTS)) errors.push(`Baris ${rowNumber}: Department tidak valid.`);
+            if (!matchesChoice(String(row.level).trim(), VALID_LEVELS)) errors.push(`Baris ${rowNumber}: Level tidak valid.`);
+            if (!matchesChoice(String(row.unit_bisnis).trim(), VALID_BUSINESS_UNITS)) errors.push(`Baris ${rowNumber}: Unit Bisnis tidak valid.`);
+            if (!matchesChoice(String(row.participant_status).trim(), VALID_PARTICIPANT_STATUSES)) errors.push(`Baris ${rowNumber}: Status Peserta tidak valid.`);
+        });
+        return errors;
+    };
+
+    const applyParsedRows = (headers, rows) => {
+        const normalizedHeaders = headers.map(header => String(header).trim());
+        const normalizedRows = rows.map(row => {
+            const normalized = {};
+            BULK_COLUMNS.forEach(column => { normalized[column] = String(row[column] ?? ''); });
+            return normalized;
+        });
+        const errors = validateRows(normalizedHeaders, normalizedRows);
+        setValidationErrors(errors);
+        setPreviewData(normalizedRows.slice(0, 5));
+        if (errors.length > 0) {
+            Swal.fire('Validasi gagal', errors.slice(0, 10).join('<br>'), 'error');
+        }
+    };
+
     const handleFileChange = (e) => {
         const selectedFile = e.target.files[0];
         if (!selectedFile) return;
         setFile(selectedFile);
         setPreviewData([]); // Clear old preview
+        setValidationErrors([]);
 
         const fileExt = selectedFile.name.split('.').pop().toLowerCase();
 
@@ -50,8 +120,7 @@ function BulkUploadModal({ onClose, onSuccess }) {
             Papa.parse(selectedFile, {
                 header: true,
                 skipEmptyLines: true,
-                preview: 5,
-                complete: (result) => setPreviewData(result.data),
+                complete: (result) => applyParsedRows(result.meta.fields || [], result.data),
                 error: (err) => Swal.fire('Kesalahan', 'Gagal memproses CSV: ' + err.message, 'error')
             });
         } else if (['xlsx', 'xls'].includes(fileExt)) {
@@ -70,14 +139,14 @@ function BulkUploadModal({ onClose, onSuccess }) {
                     }
                     const headers = jsonData[0];
                     // Take up to 5 data rows for preview
-                    const previewRows = jsonData.slice(1, 6).map(row => {
+                    const parsedRows = jsonData.slice(1).map(row => {
                         const obj = {};
                         headers.forEach((header, idx) => {
                             obj[header] = row[idx] !== undefined ? String(row[idx]) : '';
                         });
                         return obj;
                     });
-                    setPreviewData(previewRows);
+                    applyParsedRows(headers, parsedRows);
                 } catch (err) {
                     Swal.fire('Kesalahan', 'Gagal memproses file Excel: ' + err.message, 'error');
                 }
@@ -92,6 +161,10 @@ function BulkUploadModal({ onClose, onSuccess }) {
     const handleUpload = async () => {
         if (!file) {
             Swal.fire('Kesalahan', 'Harap pilih file.', 'error');
+            return;
+        }
+        if (validationErrors.length > 0) {
+            Swal.fire('Kesalahan', validationErrors.slice(0, 10).join('<br>'), 'error');
             return;
         }
 
@@ -125,9 +198,9 @@ function BulkUploadModal({ onClose, onSuccess }) {
         // Create sample data based on current classifications
         const exampleClass = classes.length > 0 ? classes[0].name : 'HO Staff';
         const wsData = [
-            ['username', 'password', 'full_name', 'age', 'gender', 'education', 'department', 'position', 'level', 'unit_bisnis', 'class'],
-            ['johndoe', 'pass123', 'John Doe', '30', 'Male', 'S1', 'HRGA', 'Manager', 'Supervisor / Section Head', 'PT. Long Daliq Primacoal BP', exampleClass],
-            ['janedoe', 'pass456', 'Jane Doe', '28', 'Female', 'S2', 'Production', 'Staff', 'Admin / Non - Staff', 'PT. Muncul Kilau Persada', classes.length > 1 ? classes[1].name : 'Site Operator']
+            BULK_COLUMNS,
+            ['johndoe', 'pass123', 'John Doe', '30', 'Male', 'S1', 'HRGA', 'Manager', 'Supervisor / Section Head', 'PT. Long Daliq Primacoal - BP', 'Recruitment Process', exampleClass],
+            ['janedoe', 'pass456', 'Jane Doe', '28', 'Female', 'S2', 'Production', 'Staff', 'Admin / Non - Staff', 'PT. Muncul Kilau Persada', 'Promotion Process', classes.length > 1 ? classes[1].name : 'Site Operator']
         ];
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.aoa_to_sheet(wsData);
@@ -152,7 +225,7 @@ function BulkUploadModal({ onClose, onSuccess }) {
                 <div className="flex-1 overflow-y-auto px-6 py-4">
                     {!results ? (
                         <>
-                            <p className="text-sm text-gray-600 mb-4">Upload file CSV atau Excel dengan kolom berikut:</p>
+                            <p className="text-sm text-gray-600 mb-4">Upload file CSV atau Excel dengan urutan 12 kolom berikut. SELURUH kolom pada setiap baris wajib diisi.</p>
                             <div className="mb-6 overflow-x-auto">
                                 <table className="min-w-full border-collapse border border-gray-300 text-sm">
                                     <thead>
@@ -160,13 +233,14 @@ function BulkUploadModal({ onClose, onSuccess }) {
                                             <th className="border border-gray-300 px-3 py-2">username *</th>
                                             <th className="border border-gray-300 px-3 py-2">password *</th>
                                             <th className="border border-gray-300 px-3 py-2">full_name *</th>
-                                            <th className="border border-gray-300 px-3 py-2">age</th>
-                                            <th className="border border-gray-300 px-3 py-2">gender</th>
-                                            <th className="border border-gray-300 px-3 py-2">education</th>
-                                            <th className="border border-gray-300 px-3 py-2">department</th>
-                                            <th className="border border-gray-300 px-3 py-2">position</th>
+                                            <th className="border border-gray-300 px-3 py-2">age *</th>
+                                            <th className="border border-gray-300 px-3 py-2">gender *</th>
+                                            <th className="border border-gray-300 px-3 py-2">education *</th>
+                                            <th className="border border-gray-300 px-3 py-2">department *</th>
+                                            <th className="border border-gray-300 px-3 py-2">position *</th>
                                             <th className="border border-gray-300 px-3 py-2">level *</th>
-                                            <th className="border border-gray-300 px-3 py-2">unit_bisnis</th>
+                                            <th className="border border-gray-300 px-3 py-2">unit_bisnis *</th>
+                                            <th className="border border-gray-300 px-3 py-2">participant_status *</th>
                                             <th className="border border-gray-300 px-3 py-2">class *</th>
                                         </tr>
                                     </thead>
@@ -181,7 +255,8 @@ function BulkUploadModal({ onClose, onSuccess }) {
                                             <td className="border border-gray-300 px-3 py-2">HRGA</td>
                                             <td className="border border-gray-300 px-3 py-2">Manager</td>
                                             <td className="border border-gray-300 px-3 py-2">Supervisor / Section Head</td>
-                                            <td className="border border-gray-300 px-3 py-2">PT. Long Daliq Primacoal BP</td>
+                                            <td className="border border-gray-300 px-3 py-2">PT. Long Daliq Primacoal - BP</td>
+                                            <td className="border border-gray-300 px-3 py-2">Recruitment Process</td>
                                             <td className="border border-gray-300 px-3 py-2">HO Staff</td>
                                         </tr>
                                         <tr className="bg-gray-50">
@@ -195,14 +270,19 @@ function BulkUploadModal({ onClose, onSuccess }) {
                                             <td className="border border-gray-300 px-3 py-2">Staff</td>
                                             <td className="border border-gray-300 px-3 py-2">Admin / Non - Staff</td>
                                             <td className="border border-gray-300 px-3 py-2">PT. Muncul Kilau Persada</td>
+                                            <td className="border border-gray-300 px-3 py-2">Promotion Process</td>
                                             <td className="border border-gray-300 px-3 py-2">Site Operator</td>
                                         </tr>
                                     </tbody>
                                 </table>
                                 <p className="text-xs text-info-600 mt-1 font-medium bg-info-50 p-2 rounded border border-info-200">
-                                    * Kolom wajib. Kolom lain opsional. <br/>
-                                    ** Pilihan Level: Operator / Mekanik, Admin / Non - Staff, Foreman / Officer, Supervisor / Section Head, Superintendent / Dept. Head / Management <br/>
-                                    <strong>Klasifikasi yang tersedia:</strong> {classes.length > 0 ? classes.map(c => c.name).join(', ') : 'HO Staff, Site Operator, dll.'}
+                                    <strong>Semua kolom wajib diisi.</strong> Gunakan nilai yang sesuai persis dengan daftar berikut:<br/>
+                                    <strong>Gender:</strong> Male, Female<br/>
+                                    <strong>Department:</strong> {VALID_DEPARTMENTS.join(', ')}<br/>
+                                    <strong>Level:</strong> {VALID_LEVELS.join(', ')}<br/>
+                                    <strong>Unit Bisnis:</strong> {VALID_BUSINESS_UNITS.join(', ')}<br/>
+                                    <strong>Status Peserta:</strong> {VALID_PARTICIPANT_STATUSES.join(', ')}<br/>
+                                    <strong>Klasifikasi/Class aktif:</strong> {classes.length > 0 ? classes.map(c => c.name).join(', ') : 'Memuat daftar kelas...'}
                                 </p>
                             </div>
 
@@ -267,6 +347,16 @@ function BulkUploadModal({ onClose, onSuccess }) {
                                 </div>
                             )}
 
+                            {validationErrors.length > 0 && (
+                                <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                                    <p className="font-semibold">File belum dapat diunggah:</p>
+                                    <ul className="mt-1 list-disc list-inside space-y-1">
+                                        {validationErrors.slice(0, 10).map((error, index) => <li key={index}>{error}</li>)}
+                                    </ul>
+                                    {validationErrors.length > 10 && <p className="mt-1">Dan {validationErrors.length - 10} kesalahan lainnya.</p>}
+                                </div>
+                            )}
+
                             {/* Assign all checkbox */}
                             <label className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition">
                                 <input
@@ -314,13 +404,13 @@ function BulkUploadModal({ onClose, onSuccess }) {
                     {!results ? (
                         <button
                             onClick={handleUpload}
-                            disabled={uploading || !file}
+                            disabled={uploading || !file || validationErrors.length > 0}
                             className={`px-4 py-2 text-white rounded-lg transition ${uploading || !file
                                     ? 'bg-blue-300 cursor-not-allowed'
                                     : 'bg-blue-500 hover:bg-blue-600'
                                 }`}
                         >
-                            {uploading ? 'Mengunggah...' : 'Unggah'}
+                            {uploading ? 'Mengunggah...' : validationErrors.length > 0 ? 'Perbaiki file terlebih dahulu' : 'Unggah'}
                         </button>
                     ) : (
                         <button
