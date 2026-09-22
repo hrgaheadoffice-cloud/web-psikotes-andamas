@@ -144,6 +144,7 @@ export function SpeedTest({ assignmentId }) {
       testTitle={testData.test_name}
       timeLeft={timeLeft}
       formatTime={formatTime}
+      onTimeUp={() => submitTestSession(true)}
       isFullscreen={isFullscreen}
       isLocked={isLocked}
       onReturnFullscreen={enterFullscreen}

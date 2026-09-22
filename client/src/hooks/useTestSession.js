@@ -191,27 +191,11 @@ export function useTestSession(assignmentId, options = {}) {
   // Timer state for submission prevention
   const isSubmittingRef = useRef(false);
 
-  // Timer
+  // CountdownTimer owns the ticking state; keep the latest value without rerendering the page.
   const handleSubmitRef = useRef(null);
-
-  useEffect(() => {
-    if (disableTimer || timeLeft === null || loading || isLocked || isSubmittingRef.current) return;
-
-    const timerId = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timerId);
-          if (!isSubmittingRef.current) {
-            handleSubmitRef.current?.(true);
-          }
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timerId);
-  }, [timeLeft, loading, isLocked, disableTimer]);
+  const handleTimerTick = useCallback((seconds) => {
+    timeLeftRef.current = seconds;
+  }, []);
 
   // Submit test
   const handleSubmit = useCallback(async (isTimeout = false, overrideAnswers = null) => {
@@ -404,6 +388,7 @@ export function useTestSession(assignmentId, options = {}) {
     // Actions
     handleSubmit,
     formatTime,
+    onTimeTick: handleTimerTick,
     
     // Real-time Sync
     syncAnswer: async (qId, optionId, type = 'single') => {

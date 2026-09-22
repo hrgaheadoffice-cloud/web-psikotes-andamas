@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTestSession } from '../hooks/useTestSession';
 import Swal from 'sweetalert2';
+import { CountdownTimer } from './tests/TestLayout';
 
 function LogicTest({ assignmentId }) {
     const navigate = useNavigate();
@@ -238,12 +239,12 @@ function LogicTest({ assignmentId }) {
                     </div>
                 </div>
             )}
-            <div className="min-h-screen bg-gray-100 flex flex-col">
+            <div className="min-h-screen bg-gray-100 flex flex-col notranslate" translate="no">
             {/* Header */}
             <div className="bg-white shadow px-4 py-3 flex items-center justify-between sticky top-0 z-10">
-                <h1 className="font-semibold text-lg">Tes Logika & Aritmatika</h1>
+                <h1 className="font-semibold text-lg notranslate" translate="no">Tes Logika &amp; Aritmatika</h1>
                 <div className="bg-red-100 text-red-700 px-3 py-1 rounded-md font-mono text-lg">
-                    {formatTime(timeLeft)}
+                    <CountdownTimer initialTime={timeLeft} formatTime={formatTime} onTimeUp={() => handleSubmit(true)} isActive={!isLocked && !hookIsSubmitting} />
                 </div>
             </div>
 
@@ -296,7 +297,7 @@ function LogicTest({ assignmentId }) {
                     }`}>
                         {/* Question Header */}
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
-                            <span className="text-sm text-gray-500">
+                            <span className="text-sm text-gray-500 notranslate" translate="no">
                                 Pertanyaan {currentIndex + 1} dari {questions.length}
                             </span>
                             <button
@@ -311,8 +312,8 @@ function LogicTest({ assignmentId }) {
                         </div>
 
                         {/* Question Text */}
-                        <h2 className="text-xl font-medium text-gray-800 mb-8 leading-relaxed">
-                            <div dangerouslySetInnerHTML={{ __html: currentQ.content }} />
+                        <h2 className="text-xl font-medium text-gray-800 mb-8 leading-relaxed notranslate" translate="no">
+                            <div className="notranslate" translate="no" dangerouslySetInnerHTML={{ __html: currentQ.content }} />
                         </h2>
 
                         {/* Options */}
@@ -340,7 +341,7 @@ function LogicTest({ assignmentId }) {
                                         } ${justAnswered && isSelected ? 'animate-pulse' : ''}`}
                                     >
                                         <div className="flex items-center gap-3">
-                                            <span className={`font-bold ${isSelected ? 'text-white' : 'text-gray-500'}`}>
+                                            <span className={`font-bold notranslate ${isSelected ? 'text-white' : 'text-gray-500'}`} translate="no">
                                                 {isMultiSelect ? (
                                                     <span className="w-5 h-5 border-2 border-current rounded flex items-center justify-center">
                                                         {isSelected ? '✓' : ''}
@@ -349,7 +350,7 @@ function LogicTest({ assignmentId }) {
                                                     opt.label
                                                 )}
                                             </span>
-                                            <span dangerouslySetInnerHTML={{ __html: opt.content }} />
+                                            <span className="notranslate" translate="no" dangerouslySetInnerHTML={{ __html: opt.content }} />
                                         </div>
                                     </button>
                                 );

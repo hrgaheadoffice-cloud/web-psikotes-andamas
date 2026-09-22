@@ -38,6 +38,8 @@ export function StandardTest() {
     enterFullscreen,
     handleSubmit,
     formatTime,
+    onTimeTick,
+    syncAnswer,
   } = useTestSession(assignmentId, {
     requireAllAnswers: true,
     onTestComplete: handleTestComplete,
@@ -62,7 +64,7 @@ export function StandardTest() {
         }
       }, 350);
     }
-  }, [questions, currentIndex, setAnswers, testData, setCurrentIndex, setShowConfirmModal]);
+  }, [questions, currentIndex, setAnswers, syncAnswer, testData, setCurrentIndex, setShowConfirmModal]);
 
   const toggleFlag = useCallback(() => {
     const qId = questions[currentIndex]?.id;
@@ -89,7 +91,7 @@ export function StandardTest() {
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(prev => prev + 1);
     }
-  }, [currentIndex]);
+  }, [currentIndex, questions.length]);
 
   const goPrev = useCallback(() => {
     if (currentIndex > 0) {
@@ -131,6 +133,8 @@ export function StandardTest() {
       testTitle={testData.test_name}
       timeLeft={timeLeft}
       formatTime={formatTime}
+      onTimeUp={() => handleSubmit(true)}
+      onTimeTick={onTimeTick}
       isFullscreen={isFullscreen}
       isLocked={isLocked}
       onReturnFullscreen={enterFullscreen}
@@ -162,6 +166,7 @@ export function StandardTest() {
 
       {/* Question Card */}
       <QuestionCard
+        questionId={currentQuestion.id}
         questionNumber={currentIndex + 1}
         totalQuestions={questions.length}
         content={currentQuestion.content}

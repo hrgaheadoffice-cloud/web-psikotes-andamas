@@ -15,8 +15,12 @@ function Login() {
     setError('');
     setLoading(true);
 
+    // BERSIHKAN INPUT SPASI & CAPITAL DARI KEYBOARD HP
+    const cleanUsername = username.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
     try {
-      await login(username, password);
+      await login(cleanUsername, cleanPassword);
     } catch (err) {
       setError('Username atau kata sandi salah');
       Swal.fire('Gagal Masuk', 'Username atau kata sandi salah', 'error');
@@ -30,19 +34,16 @@ function Login() {
       <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-sm border border-neutral-200">
         {/* Logo / Title */}
         <div>
-          {<div className="flex justify-center mb-6">
+          <div className="flex justify-center mb-6">
             <img
               src="/Logo_Login_2.png"
               alt="Web Psikotes Logo"
-              className="h-20 w-auto"  // adjust height as needed
+              className="h-20 w-auto"
             />
-          </div>}
+          </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-neutral-900 font-display">
             Web Psikotes
           </h2>
-          {/* {<p className="mt-2 text-center text-sm text-gray-600">
-            Andamas Group
-          </p>} */}
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -56,6 +57,9 @@ function Login() {
                 name="username"
                 type="text"
                 autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck="false"
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -72,6 +76,7 @@ function Login() {
                 name="password"
                 type="password"
                 autoComplete="current-password"
+                autoCapitalize="none"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -107,9 +112,6 @@ function Login() {
           <div className="text-center text-xs text-neutral-400 mt-4">
             © {new Date().getFullYear()} Web Psikotes. Hak cipta dilindungi.
           </div>
-          {/* <div className="text-center text-xs text-gray-500 mt-5">
-            by Alexander Agung
-          </div> */}
         </form>
       </div>
     </div>

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTestSession } from '../hooks/useTestSession';
 import Swal from 'sweetalert2';
+import { CountdownTimer } from './tests/TestLayout';
 
 function DISCTest({ assignmentId }) {
     const navigate = useNavigate();
@@ -142,7 +143,7 @@ function DISCTest({ assignmentId }) {
             <div className="bg-white shadow px-3 sm:p-4 flex justify-between items-center sticky top-0 z-10">
                 <h1 className="font-bold text-base sm:text-lg truncate max-w-[150px] sm:max-w-none">{testData?.test_name}</h1>
                 <div className="text-base sm:text-xl font-mono bg-red-100 text-red-700 px-2 sm:px-3 py-1 rounded text-sm sm:text-base">
-                    {timeLeft !== null ? formatTime(timeLeft) : "∞"}
+                    <CountdownTimer initialTime={timeLeft} formatTime={formatTime} onTimeUp={() => handleSubmit(true)} isActive={!isLocked && !isSubmitting} />
                 </div>
             </div>
 

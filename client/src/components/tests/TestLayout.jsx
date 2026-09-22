@@ -1,4 +1,5 @@
 // client/src/components/tests/TestLayout.jsx
+import { memo, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // Check if fullscreen is supported (for UI messaging)
@@ -10,6 +11,39 @@ const isFullscreenSupported = () => {
     );
 };
 
+export function CountdownTimer({ initialTime, formatTime, onTimeUp, onTick, isActive = true }) {
+  const [secondsLeft, setSecondsLeft] = useState(initialTime);
+  const onTimeUpRef = useRef(onTimeUp);
+  const onTickRef = useRef(onTick);
+  const hasExpiredRef = useRef(false);
+
+  useEffect(() => {
+    onTimeUpRef.current = onTimeUp;
+    onTickRef.current = onTick;
+  }, [onTimeUp, onTick]);
+
+  useEffect(() => {
+    if (!isActive || secondsLeft === null || secondsLeft <= 0) return undefined;
+
+    const timerId = setInterval(() => {
+      setSecondsLeft((previous) => {
+        const next = Math.max(previous - 1, 0);
+        onTickRef.current?.(next);
+        if (next === 0 && !hasExpiredRef.current) {
+          hasExpiredRef.current = true;
+          clearInterval(timerId);
+          onTimeUpRef.current?.();
+        }
+        return next;
+      });
+    }, 1000);
+
+    return () => clearInterval(timerId);
+  }, [isActive, secondsLeft]);
+
+  return <span>{formatTime(secondsLeft)}</span>;
+}
+
 /**
  * Common layout wrapper for test screens
  * Provides consistent header, fullscreen overlay, and confirmation modal
@@ -18,6 +52,8 @@ export function TestLayout({
   children,
   testTitle,
   timeLeft,
+  onTimeUp,
+  onTimeTick,
   formatTime,
   isFullscreen,
   isLocked,
@@ -58,7 +94,14 @@ export function TestLayout({
           {testTitle}
         </h1>
         <div className="text-base sm:text-xl font-mono bg-red-100 text-red-700 px-2 sm:px-3 py-1 rounded text-sm sm:text-base">
-          {formatTime(timeLeft)}
+          <CountdownTimer
+            key={timeLeft === null ? 'pending' : 'active'}
+            initialTime={timeLeft}
+            formatTime={formatTime}
+            onTimeUp={onTimeUp}
+            onTick={onTimeTick}
+            isActive={!isLocked && !isSubmitting}
+          />
         </div>
       </div>
 
@@ -168,7 +211,7 @@ export function QuestionNavGrid({
 /**
  * Question card component
  */
-export function QuestionCard({ 
+function QuestionCardContent({
   questionNumber, 
   totalQuestions, 
   content, 
@@ -181,7 +224,7 @@ export function QuestionCard({
   hideNumbering = false
 }) {
   return (
-    <div className="flex-1 p-3 sm:p-6 flex flex-col items-center justify-center overflow-y-auto">
+    <div className="flex-1 p-3 sm:p-6 flex flex-col items-center justify-center overflow-y-auto notranslate" translate="no">
       <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-lg w-full max-w-2xl">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 sm:mb-6">
@@ -206,7 +249,7 @@ export function QuestionCard({
 
         {/* Question */}
         <h2 className="text-base sm:text-lg md:text-xl font-semibold mb-4 sm:mb-6 leading-relaxed">
-          {content}
+          <span className="notranslate" translate="no">{content}</span>
         </h2>
 
         {/* Options */}
@@ -223,10 +266,10 @@ export function QuestionCard({
                     : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
                 }`}
               >
-                <span className={`font-bold mr-2 sm:mr-3 ${isSelected ? 'text-white' : 'text-gray-500'}`}>
+                <span className={`font-bold mr-2 sm:mr-3 notranslate ${isSelected ? 'text-white' : 'text-gray-500'}`} translate="no">
                   {opt.label}.
                 </span>
-                <span className="text-sm sm:text-base">{opt.content}</span>
+                <span className="text-sm sm:text-base notranslate" translate="no">{opt.content}</span>
               </button>
             );
           })}
@@ -235,6 +278,16 @@ export function QuestionCard({
     </div>
   );
 }
+
+export const QuestionCard = memo(QuestionCardContent, (previous, next) => (
+  previous.questionId === next.questionId &&
+  previous.selectedAnswer === next.selectedAnswer &&
+  previous.isFlagged === next.isFlagged &&
+  previous.questionNumber === next.questionNumber &&
+  previous.totalQuestions === next.totalQuestions &&
+  previous.showFlag === next.showFlag &&
+  previous.hideNumbering === next.hideNumbering
+));
 
 /**
  * Footer navigation component

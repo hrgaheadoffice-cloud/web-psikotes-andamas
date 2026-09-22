@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTestSession } from '../hooks/useTestSession';
 import Swal from 'sweetalert2';
+import { CountdownTimer } from './tests/TestLayout';
 
 function TemperamentTest({ assignmentId }) {
     const navigate = useNavigate();
@@ -164,7 +165,7 @@ function TemperamentTest({ assignmentId }) {
                     </div>
                     {timeLeft !== null && (
                         <div className="text-xl font-mono bg-red-100 text-red-700 px-3 py-1 rounded">
-                            {formatTime(timeLeft)}
+                            <CountdownTimer initialTime={timeLeft} formatTime={formatTime} onTimeUp={() => handleSubmit(true)} isActive={!isLocked && !hookIsSubmitting} />
                         </div>
                     )}
                 </div>

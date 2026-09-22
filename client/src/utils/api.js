@@ -38,9 +38,12 @@ apiClient.interceptors.response.use(
   (error) => {
     // Handle 401 Unauthorized
     if (error.response?.status === 401) {
-      // If the error is from the login endpoint, don't reload
-      // because the Login component needs to handle the error itself
-      if (error.config?.url?.includes('/login')) {
+      // Exit logging is best-effort: its failure must not end the participant's session.
+      // Login errors are handled by the Login component itself.
+      if (
+        error.config?.url?.includes('/exit-log') ||
+        error.config?.url?.includes('/login')
+      ) {
         return Promise.reject(error);
       }
 

@@ -198,6 +198,7 @@ export function PapiKostickTest() {
       testTitle={testData.test_name}
       timeLeft={timeLeft}
       formatTime={formatTime}
+      onTimeUp={() => handleSubmit(true)}
       isFullscreen={isFullscreen}
       isLocked={isLocked}
       onReturnFullscreen={enterFullscreen}

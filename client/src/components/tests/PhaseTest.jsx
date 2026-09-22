@@ -1,7 +1,38 @@
 // client/src/components/tests/PhaseTest.jsx
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { memo, useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../../utils/api';
 import Swal from 'sweetalert2';
+import { CountdownTimer } from './TestLayout';
+
+const PhaseQuestionCard = memo(function PhaseQuestionCard({ question, multi, selectedAnswers, onSelect }) {
+  return (
+    <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg w-full max-w-2xl notranslate" translate="no">
+      {multi && <p className="text-sm text-blue-600 font-medium mb-3 notranslate" translate="no">Pilih 2 jawaban</p>}
+      <div className="text-base sm:text-lg font-semibold mb-6 leading-relaxed notranslate" translate="no" dangerouslySetInnerHTML={{ __html: question.content }} />
+      <div className="space-y-3">
+        {question.options?.map((option) => {
+          const isSelected = selectedAnswers.includes(option.id);
+          return (
+            <button
+              key={option.id}
+              onClick={() => onSelect(option.id)}
+              className={`w-full text-left px-4 py-3.5 border-2 rounded-lg transition-all min-h-[48px] flex items-center ${isSelected ? 'bg-blue-500 text-white border-blue-600 shadow-md' : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:bg-blue-50'}`}
+            >
+              <span className="font-bold mr-3 flex-shrink-0 w-6 notranslate" translate="no">{option.label}.</span>
+              <span className="flex-1 notranslate" translate="no" dangerouslySetInnerHTML={{ __html: option.content }} />
+              {isSelected && <span className="ml-2 text-white flex-shrink-0">✓</span>}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}, (previous, next) => (
+  previous.question.id === next.question.id &&
+  previous.multi === next.multi &&
+  previous.selectedAnswers.length === next.selectedAnswers.length &&
+  previous.selectedAnswers.every((id, index) => id === next.selectedAnswers[index])
+));
 
 /**
  * Phase Test — Timed assessment with auto-advance (single) or manual (multi).
@@ -11,16 +42,7 @@ export function PhaseTest({ phase, assignmentId, onReturnToHub, isLocked, syncAn
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(() => {
-    const endKey = `iq_phase_${phase.id}_end`;
-    const savedEnd = localStorage.getItem(endKey);
-    if (savedEnd) {
-      const remaining = Math.floor((parseInt(savedEnd) - Date.now()) / 1000);
-      return remaining > 0 ? remaining : 0;
-    }
-    // If no end time saved, don't set it yet - wait for first mount
-    return phase.timer_seconds;
-  });
+  const [initialTime, setInitialTime] = useState(phase.timer_seconds);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedAnswers, setSelectedAnswers] = useState([]);
 
@@ -57,6 +79,13 @@ export function PhaseTest({ phase, assignmentId, onReturnToHub, isLocked, syncAn
           } catch (e) {
             console.error('Failed to restore session:', e);
           }
+        }
+
+        const endKey = `iq_phase_${phase.id}_end`;
+        const savedEnd = localStorage.getItem(endKey);
+        if (savedEnd) {
+          const remaining = Math.floor((parseInt(savedEnd, 10) - Date.now()) / 1000);
+          setInitialTime(remaining > 0 ? remaining : 0);
         }
 
         setLoading(false);
@@ -97,26 +126,6 @@ export function PhaseTest({ phase, assignmentId, onReturnToHub, isLocked, syncAn
       localStorage.setItem(endKey, endTime.toString());
     }
   }, [loading, phase]);
-
-  // Main timer
-  useEffect(() => {
-    if (loading || isLocked || isSubmittingRef.current) return;
-
-    const timerId = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timerId);
-          if (!isSubmittingRef.current) {
-            handleSubmitPhaseInternal(true);
-          }
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(timerId);
-  }, [loading, isLocked]);
 
   // Cleanup advance timer
   useEffect(() => {
@@ -229,7 +238,7 @@ export function PhaseTest({ phase, assignmentId, onReturnToHub, isLocked, syncAn
         }
       }, 350);
     }
-  }, [isMultiQuestion, handleSubmitPhaseInternal]);
+  }, [isMultiQuestion, handleSubmitPhaseInternal, syncAnswer]);
 
   const handleNext = useCallback(() => {
     if (selectedAnswers.length === 0) return;
@@ -253,7 +262,7 @@ export function PhaseTest({ phase, assignmentId, onReturnToHub, isLocked, syncAn
     } else {
       handleSubmitPhaseInternal(false);
     }
-  }, [selectedAnswers, handleSubmitPhaseInternal]);
+  }, [selectedAnswers, handleSubmitPhaseInternal, syncAnswer]);
 
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60);
@@ -299,10 +308,13 @@ export function PhaseTest({ phase, assignmentId, onReturnToHub, isLocked, syncAn
             Soal {currentIndex + 1}/{questions.length}
           </p>
         </div>
-        <div className={`text-xl font-mono px-3 py-1 rounded ${
-          timeLeft <= 30 ? 'bg-red-100 text-red-700' : 'bg-red-100 text-red-700'
-        }`}>
-          {formatTime(timeLeft)}
+        <div className="text-xl font-mono bg-red-100 text-red-700 px-3 py-1 rounded">
+          <CountdownTimer
+            initialTime={initialTime}
+            formatTime={formatTime}
+            onTimeUp={() => handleSubmitPhaseInternal(true)}
+            isActive={!isSubmitting && !isLocked && !loading}
+          />
         </div>
       </div>
 
@@ -316,48 +328,12 @@ export function PhaseTest({ phase, assignmentId, onReturnToHub, isLocked, syncAn
 
       {/* Question area */}
       <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 overflow-y-auto">
-        <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg w-full max-w-2xl">
-          {/* Multi-select indicator */}
-          {multi && (
-            <p className="text-sm text-blue-600 font-medium mb-3">
-              Pilih 2 jawaban
-            </p>
-          )}
-
-          {/* Question content */}
-          <div
-            className="text-base sm:text-lg font-semibold mb-6 leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: q.content }}
-          />
-
-          {/* Options */}
-          <div className="space-y-3">
-            {q.options?.map((opt) => {
-              const isSelected = selectedAnswers.includes(opt.id);
-              return (
-                <button
-                  key={opt.id}
-                  onClick={() => handleSelect(opt.id)}
-                  className={`w-full text-left px-4 py-3.5 border-2 rounded-lg transition-all min-h-[48px] flex items-center ${
-                    isSelected
-                      ? 'bg-blue-500 text-white border-blue-600 shadow-md'
-                      : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
-                  }`}
-                >
-                  <span className="font-bold mr-3 flex-shrink-0 w-6">{opt.label}.</span>
-                  <span className="flex-1" dangerouslySetInnerHTML={{ __html: opt.content }} />
-                  {isSelected && (
-                    <span className="ml-2 text-white flex-shrink-0">
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                      </svg>
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+           <PhaseQuestionCard
+             question={q}
+             multi={multi}
+             selectedAnswers={selectedAnswers}
+             onSelect={handleSelect}
+           />
       </div>
 
       {/* Footer — only for multi-select (single auto-advances) */}
