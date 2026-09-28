@@ -181,7 +181,7 @@ export function QuestionNavGrid({
           let btnClass = 'w-8 h-8 sm:w-9 sm:h-9 flex-shrink-0 flex items-center justify-center text-xs font-bold rounded-full transition-all ';
           
           if (answers[q.id]) {
-            btnClass += 'bg-green-500 text-white hover:bg-green-600';
+            btnClass += 'bg-blue-500 text-white hover:bg-blue-600';
           } else if (flagged.has(q.id)) {
             btnClass += 'bg-yellow-400 text-white hover:bg-yellow-500';
           } else {

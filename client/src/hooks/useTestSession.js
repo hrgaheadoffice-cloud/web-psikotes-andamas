@@ -233,17 +233,30 @@ export function useTestSession(assignmentId, options = {}) {
         .filter(idx => idx !== null);
 
       if (missingIndices.length > 0) {
+        const missingQuestionButtons = missingIndices.map((index) => (
+          `<button type="button" class="missing-question-button inline-flex min-h-[32px] min-w-[32px] items-center justify-center rounded border border-gray-300 bg-white px-2 text-sm font-semibold text-gray-700 hover:border-blue-400 hover:bg-blue-50" data-question-index="${index}">${index + 1}</button>`
+        )).join(' ');
+
         Swal.fire({
           title: 'Jawaban Belum Lengkap',
-          html: `Anda belum menjawab ${missingIndices.length} soal.<br/><br/><div class="text-sm font-mono bg-neutral-50 p-2 border border-neutral-200">Nomor: ${missingIndices.map(i => i + 1).join(', ')}</div>`,
+          html: `Anda belum menjawab ${missingIndices.length} soal.<br/><br/><div class="text-sm bg-neutral-50 p-3 border border-neutral-200 text-left"><div class="mb-2 font-medium">Nomor:</div><div class="flex flex-wrap gap-2">${missingQuestionButtons}</div></div>`,
           icon: 'warning',
           showCancelButton: true,
           confirmButtonText: 'Lengkapi Jawaban',
           cancelButtonText: 'Batal',
           confirmButtonColor: '#0F172A',
+          didOpen: () => {
+            document.querySelectorAll('.missing-question-button').forEach((button) => {
+              button.addEventListener('click', () => {
+                const questionIndex = Number(button.dataset.questionIndex);
+                Swal.close();
+                options.onJump?.(questionIndex);
+              });
+            });
+          },
         }).then((result) => {
-          if (result.isConfirmed && options.onJump) {
-            options.onJump(missingIndices[0]);
+          if (result.isConfirmed) {
+            options.onJump?.(missingIndices[0]);
           }
         });
         return;

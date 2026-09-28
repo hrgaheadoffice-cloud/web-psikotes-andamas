@@ -1,17 +1,23 @@
 import { useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTestSession } from '../../hooks/useTestSession';
-import { TestLayout, QuestionCard } from './TestLayout';
+import { TestLayout, QuestionCard, QuestionNavGrid } from './TestLayout';
 
 export function CBITest() {
   const { assignmentId } = useParams();
   const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showInstructions, setShowInstructions] = useState(true);
+  const [showQuestionNav, setShowQuestionNav] = useState(false);
 
   const handleTestComplete = useCallback(() => {
     navigate('/dashboard');
   }, [navigate]);
+
+  const handleQuestionJump = useCallback((questionIndex) => {
+    setCurrentIndex(questionIndex);
+    setShowQuestionNav(false);
+  }, []);
 
   const {
     testData,
@@ -31,7 +37,8 @@ export function CBITest() {
     syncAnswer,
   } = useTestSession(assignmentId, {
     requireAllAnswers: true,
-    onTestComplete: handleTestComplete
+    onTestComplete: handleTestComplete,
+    onJump: handleQuestionJump
   });
 
   const handleSelect = useCallback((optionId) => {
@@ -49,7 +56,7 @@ export function CBITest() {
         setShowConfirmModal(true);
       }
     }, 250);
-  }, [questions, currentIndex, setAnswers, setShowConfirmModal]);
+  }, [questions, currentIndex, setAnswers, setShowConfirmModal, syncAnswer]);
 
   const handleConfirmSubmit = useCallback(() => {
     setShowConfirmModal(false);
@@ -91,8 +98,8 @@ export function CBITest() {
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-8 text-sm text-yellow-800 flex items-start gap-3">
             <span className="text-xl">⚠️</span>
             <p>
-              <strong>Perhatian:</strong> Tes ini berjalan secara sekuensial (maju). Anda <strong>TIDAK BISA</strong> kembali ke soal sebelumnya. 
-              Setiap kali Anda memilih jawaban, sistem akan otomatis melanjutkan ke soal berikutnya. Pastikan jawaban Anda sesuai.
+              <strong>Perhatian:</strong> Setiap kali Anda memilih jawaban, sistem akan otomatis melanjutkan ke soal berikutnya.
+              Gunakan navigasi nomor soal untuk meninjau atau melengkapi jawaban yang masih kosong.
             </p>
           </div>
 
@@ -143,7 +150,31 @@ export function CBITest() {
       answeredCount={answeredCount}
       totalQuestions={questions.length}
     >
-      {/* Question Numbering and Progress Bar intentionally removed to obscure remaining count */}
+      <div className="px-3 pt-3 sm:px-4 sm:pt-4">
+        <button
+          type="button"
+          onClick={() => setShowQuestionNav((isVisible) => !isVisible)}
+          aria-expanded={showQuestionNav}
+          aria-controls="cbi-question-navigation"
+          className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-blue-400 hover:bg-blue-50"
+        >
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          <span>{showQuestionNav ? 'Sembunyikan nomor soal' : 'Tampilkan nomor soal'}</span>
+        </button>
+      </div>
+
+      {showQuestionNav && (
+        <div id="cbi-question-navigation" className="mt-3">
+          <QuestionNavGrid
+            questions={questions}
+            answers={answers}
+            currentIndex={currentIndex}
+            onQuestionClick={handleQuestionJump}
+          />
+        </div>
+      )}
 
       <div key={currentIndex} className="animate-slide-fade w-full flex-1 flex flex-col">
         {/* Question Card without Flag capability */}
