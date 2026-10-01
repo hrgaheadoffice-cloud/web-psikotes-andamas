@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 
-from auth import hash_password, verify_password, require_admin, require_superadmin, require_assessor_or_higher, get_current_user
+from auth import find_user_by_username, get_current_user, hash_password, normalize_username, require_admin, require_superadmin, require_assessor_or_higher, verify_password
 from database import get_db
 from models import User, ExitLog, Result, Assignment, ClassConfig
 from schemas import UserCreate, UserUpdate, ClassConfigOut
@@ -96,7 +96,8 @@ def create_user(
         if user.age is not None and (user.age < 1 or user.age > 120):
             raise HTTPException(status_code=400, detail="Usia harus antara 1 hingga 120")
 
-    db_user = db.query(User).filter(User.username == user.username).first()
+    username = normalize_username(user.username)
+    db_user = find_user_by_username(db, username)
     if db_user:
         raise HTTPException(status_code=400, detail="Username already registered")
 
@@ -107,7 +108,7 @@ def create_user(
             raise HTTPException(status_code=400, detail="Class not found")
 
     new_user = User(
-        username=user.username,
+        username=username,
         password_hash=hash_password(user.password),
         role=user.role,
         full_name=user.full_name,
@@ -192,11 +193,12 @@ def update_user(
 
     # Update fields
     if user_update.username is not None:
-        if user_update.username != user.username:
-            existing = db.query(User).filter(User.username == user_update.username).first()
+        username = normalize_username(user_update.username)
+        if username != user.username:
+            existing = find_user_by_username(db, username)
             if existing:
                 raise HTTPException(status_code=400, detail="Username already taken")
-        user.username = user_update.username  # type: ignore[assignment]
+        user.username = username  # type: ignore[assignment]
     if user_update.full_name is not None:
         user.full_name = user_update.full_name  # type: ignore[assignment]
     if user_update.gender is not None:

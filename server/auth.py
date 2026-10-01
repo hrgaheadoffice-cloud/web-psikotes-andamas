@@ -11,6 +11,12 @@ from models import User
 # Context passlib untuk algoritma bcrypt
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+def normalize_username(username: str) -> str:
+    return username.strip()
+
+def find_user_by_username(db: Session, username: str):
+    return db.query(User).filter(User.username == normalize_username(username)).first()
+
 def hash_password(password: str):
     return pwd_context.hash(password)
 
@@ -52,7 +58,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     except JWTError:
         raise credentials_exception
     
-    user = db.query(User).filter(User.username == username).first()
+    user = find_user_by_username(db, username)
     if user is None:
         raise credentials_exception
     

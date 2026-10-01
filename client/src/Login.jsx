@@ -16,7 +16,7 @@ function Login() {
     setLoading(true);
 
     // BERSIHKAN INPUT SPASI & CAPITAL DARI KEYBOARD HP
-    const cleanUsername = username.trim().toLowerCase();
+    const cleanUsername = username.trim();
     const cleanPassword = password.trim();
 
     try {
